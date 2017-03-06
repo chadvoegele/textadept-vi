@@ -3,7 +3,7 @@ textadept-vi is my humble attempt to bring vi-style modal editing to the (irresi
 
 # Installation
 ```lua
-git clone https://github.com/chadvoegele/textadept-vi.git ~/.textadept/modules
+git clone https://github.com/chadvoegele/textadept-vi.git ~/.textadept/modules/textadept-vi
 echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
 ```
 
