@@ -9,7 +9,7 @@ echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
 
 # Status
 ## Working
-* Motions: G, gg, h/j/k/l, f/F/t/T, $, 0, ^, w, b, i'/i"/i(/i)/..., iw, a'/a"/a(/a)/..., aw
+* Motions: h, j, k, l, G, gg, f, F, t, T, $, 0, ^, w, b, i{char}, iw, a{char}, aw
 * Count: all of above work with count prefix i.e. c3fa, d5l, ...
 * Find: /, n, N
 * Change Case: ~
