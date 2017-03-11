@@ -331,11 +331,18 @@ local select_action = function (endp, startp)
   local anchor = buffer.anchor
   local pos = tavi.pos.current()
   -- Emulate vim/zsh/tmux block caret selection behavior
+  -- scintilla treats this case same as pos = anchor + 1 and pos = anchor - 1
+  -- make a pre-adjustment so we can ignore it in the conditions below
+  if pos == anchor then
+    pos = pos + 1
+    endp = endp + 1
+  end
   if pos < anchor and endp >= anchor then
     buffer.anchor = anchor - 1
-  end
-  if pos >= anchor and endp < anchor then
+    endp = endp + 1
+  elseif pos > anchor and endp <= anchor then
     buffer.anchor = anchor + 1
+    endp = endp - 1
   end
   tavi.sel(endp, startp)
 end
@@ -548,14 +555,6 @@ keys.visual_block['v'] = function () tavi.enter_mode('visual') end
 keys.visual_block['V'] = function () tavi.enter_mode('visual_line') end
 
 -- Visual
-local pre_adjust_selection = function ()
-  local end_sel = buffer.selection_end
-  local pos = tavi.pos.current()
-  if end_sel == pos then
-    tavi.select.character_right()
-  end
-end
-
 keys.visual = make_canonical_movements(tavi.select)
 keys.visual[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
 keys.visual['<'] = buffer.back_tab
@@ -565,25 +564,21 @@ keys.visual['c['] = function () tavi.enter_mode('normal') end
 keys.visual['cv'] = function () tavi.enter_mode('visual_block') end
 keys.visual['V'] = function () tavi.enter_mode('visual_line') end
 keys.visual['~'] = function ()
-  pre_adjust_selection()
   tavi.change_character_case()
   tavi.enter_mode('normal')
 end
 keys.visual['x'] = function ()
-  pre_adjust_selection()
   tavi.state.paste_mode = tavi.PASTE_HERE
   buffer:cut()
   tavi.enter_mode('normal')
 end
 keys.visual['d'] = keys.visual['x']
 keys.visual['y'] = function ()
-  pre_adjust_selection()
   tavi.state.paste_mode = tavi.PASTE_HERE
   buffer:copy()
   tavi.enter_mode('normal')
 end
 keys.visual['c'] = function ()
-  pre_adjust_selection()
   tavi.state.paste_mode = tavi.PASTE_HERE
   buffer:cut()
   tavi.enter_mode(nil)
