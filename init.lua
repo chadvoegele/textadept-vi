@@ -63,6 +63,10 @@ tavi.enter_mode = function (mode)
   if mode == 'normal' then
     tavi.clear_selection()
     buffer:cancel()
+  elseif mode == 'visual_line' then
+    local start_line_pos = tavi.pos.start_line(buffer.anchor)
+    local end_line_pos = tavi.pos.end_line(tavi.pos.current(), -1)
+    tavi.sel(end_line_pos, start_line_pos)
   elseif mode == 'visual_block' then
     local pos = tavi.pos.current() -- must go before buffer.selection_mode
     buffer.selection_mode = buffer.SEL_RECTANGLE
@@ -193,17 +197,14 @@ tavi.pos.line_up = function (c) return pos_from_line_change(-(c or 1)) end
 tavi.pos.line_down = function (c) return pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
 
-tavi.pos.end_line = function (pos, with_newline)
+tavi.pos.end_line = function (pos, offset)
   local pos = pos or tavi.pos.current()
   local line = buffer:line_from_position(pos)
-  if with_newline then
-    -- ...end of line\n_
-    return buffer:line_length(line) + buffer:position_from_line(line)
-  else
-    -- line_end_position before end of line characters
-    -- with -1 -> ...end of lin_e\n makes block caret show on last char
-    return buffer.line_end_position[line]-1
-  end
+  -- -2: ...end of lin_e\n <- block caret shows on last char
+  -- -1: ...end of line_\n
+  -- 0: ...end of line\n_
+  local offset = offset or -2
+  return buffer:line_length(line) + buffer:position_from_line(line) + offset
 end
 
 tavi.pos.start_line = function (pos)
@@ -347,6 +348,30 @@ local select_action = function (endp, startp)
   tavi.sel(endp, startp)
 end
 tavi.select = make_action(select_action)
+
+local select_line_action = function (endp, startp)
+  local anchor = tavi.pos.start_line(buffer.anchor)
+  local pos = tavi.pos.start_line(tavi.pos.current())
+  local next_pos = pos_from_line_change(1, pos)
+  local endp =tavi.pos.start_line(endp)
+  local next_endp = pos_from_line_change(1, endp)
+  if pos == anchor then
+    pos = next_pos
+    endp = next_endp
+  end
+  if pos < anchor and endp >= anchor then
+    local prev_anchor = pos_from_line_change(-1, anchor)
+    buffer.anchor = prev_anchor
+    endp = next_endp
+  elseif pos > anchor and endp <= anchor then
+    local next_anchor = pos_from_line_change(1, anchor)
+    buffer.anchor = next_anchor
+    local prev_endp = pos_from_line_change(-1, endp)
+    endp = prev_endp
+  end
+  tavi.sel(endp)
+end
+tavi.select_line = make_action(select_line_action)
 
 local change_action = function(...)
   return tavi.cut(...) and tavi.enter_mode(nil)
@@ -585,20 +610,11 @@ keys.visual['c'] = function ()
 end
 
 -- Visual Line
-local extend_selection_to_line = function ()
-  local start_pos = buffer.selection_start
-  local end_pos = buffer.selection_end
-  local start_line_pos = tavi.pos.start_line(start_pos)
-  local end_line_pos = tavi.pos.end_line(end_pos, true)
-  tavi.sel(start_line_pos, end_line_pos)
-end
-
-keys.visual_line = make_canonical_movements(tavi.select)
+keys.visual_line = make_canonical_movements(tavi.select_line)
 keys.visual_line[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
 keys.visual_line['<'] = buffer.back_tab
 keys.visual_line['>'] = buffer.tab
 keys.visual_line['~'] = function ()
-  extend_selection_to_line()
   tavi.change_character_case()
   tavi.enter_mode('normal')
 end
@@ -608,20 +624,17 @@ keys.visual_line['cv'] = function () tavi.enter_mode('visual_block') end
 keys.visual_line['v'] = function () tavi.enter_mode('visual') end
 keys.visual_line['x'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  extend_selection_to_line()
   buffer:cut()
   tavi.enter_mode('normal')
 end
 keys.visual_line['d'] = keys.visual_line['x']
 keys.visual_line['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  extend_selection_to_line()
   buffer:copy()
   tavi.enter_mode('normal')
 end
 keys.visual_line['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  extend_selection_to_line()
   buffer:cut()
   tavi.enter_mode(nil)
 end
