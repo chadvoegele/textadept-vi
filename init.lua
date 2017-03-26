@@ -54,6 +54,20 @@ tavi.clear_selection = function (pos)
   buffer:set_empty_selection(pos)
 end
 
+-- Scintilla selections with block caret act as line caret using left block boundary.
+tavi.pre_adjust_selection = function ()
+  local pos = tavi.pos.current()
+  local anchor = buffer.anchor
+  if pos >= anchor then
+    tavi.select(pos+1, anchor)
+  end
+end
+
+tavi.adjust_act = function (fn)
+  tavi.pre_adjust_selection()
+  fn()
+end
+
 -- Modes
 tavi.enter_mode = function (mode)
   if keys.MODE == mode then
@@ -63,10 +77,10 @@ tavi.enter_mode = function (mode)
   if mode == 'normal' then
     tavi.clear_selection()
     buffer:cancel()
+  elseif mode == 'visual' then
+    tavi.select(buffer.selection_end, buffer.selection_start)
   elseif mode == 'visual_line' then
-    local start_line_pos = tavi.pos.start_line(buffer.anchor)
-    local end_line_pos = tavi.pos.end_line(tavi.pos.current(), -1)
-    tavi.sel(end_line_pos, start_line_pos)
+    tavi.select_line()
   elseif mode == 'visual_block' then
     local pos = tavi.pos.current() -- must go before buffer.selection_mode
     buffer.selection_mode = buffer.SEL_RECTANGLE
@@ -311,8 +325,8 @@ tavi.move = make_action(function (pos) return tavi.moveto(pos) end)
 
 local cut_action = function (endp, startp)
   local pos = tavi.pos.current()
-  if endp and tavi.sel(endp < pos and endp or endp+1, startp) then
-    buffer.cut()
+  if endp and tavi.sel(endp, startp) then
+    tavi.adjust_act(function () buffer:cut() end)
     return true
   end
 end
@@ -320,8 +334,8 @@ tavi.cut = make_action(cut_action)
 
 local copy_action = function (endp, startp)
   local pos = tavi.pos.current()
-  if endp and tavi.sel(endp < pos and endp or endp+1, startp) then
-    buffer.copy()
+  if endp and tavi.sel(endp, startp) then
+    tavi.adjust_act(function () buffer:copy() end)
     tavi.clear_selection()
     return true
   end
@@ -329,47 +343,39 @@ end
 tavi.copy = make_action(copy_action)
 
 local select_action = function (endp, startp)
-  local anchor = buffer.anchor
   local pos = tavi.pos.current()
+  local endp = endp or pos
+  local startp = startp or buffer.anchor
   -- Emulate vim/zsh/tmux block caret selection behavior
-  -- scintilla treats this case same as pos = anchor + 1 and pos = anchor - 1
   -- make a pre-adjustment so we can ignore it in the conditions below
-  if pos == anchor then
-    pos = pos + 1
-    endp = endp + 1
+  if pos == startp and pos == endp then
+    startp = startp + 1
   end
-  if pos < anchor and endp >= anchor then
-    buffer.anchor = anchor - 1
-    endp = endp + 1
-  elseif pos > anchor and endp <= anchor then
-    buffer.anchor = anchor + 1
-    endp = endp - 1
+  if pos < startp and endp >= startp then
+    startp = startp - 1
+  elseif pos > startp and endp <= startp then
+    startp = startp + 1
   end
   tavi.sel(endp, startp)
 end
 tavi.select = make_action(select_action)
 
 local select_line_action = function (endp, startp)
-  local anchor = tavi.pos.start_line(buffer.anchor)
   local pos = tavi.pos.start_line(tavi.pos.current())
-  local next_pos = pos_from_line_change(1, pos)
-  local endp =tavi.pos.start_line(endp)
-  local next_endp = pos_from_line_change(1, endp)
-  if pos == anchor then
-    pos = next_pos
-    endp = next_endp
+  local endp = tavi.pos.start_line(endp)
+  local startp = startp or tavi.pos.start_line(buffer.anchor)
+  local prev_startp = pos_from_line_change(-1, startp)
+  local next_startp = pos_from_line_change(1, startp)
+  if pos == startp and pos == endp then
+    startp = next_startp
   end
-  if pos < anchor and endp >= anchor then
-    local prev_anchor = pos_from_line_change(-1, anchor)
-    buffer.anchor = prev_anchor
-    endp = next_endp
-  elseif pos > anchor and endp <= anchor then
-    local next_anchor = pos_from_line_change(1, anchor)
-    buffer.anchor = next_anchor
-    local prev_endp = pos_from_line_change(-1, endp)
-    endp = prev_endp
+  if pos < startp and endp >= startp then
+    startp = prev_startp
+  elseif pos > startp and endp <= startp then
+    startp = next_startp
   end
-  tavi.sel(endp)
+  local endp_eol = tavi.pos.end_line(endp, -1)
+  tavi.sel(endp > startp and endp_eol or endp, startp)
 end
 tavi.select_line = make_action(select_line_action)
 
@@ -570,7 +576,7 @@ keys.visual_block['0'] = buffer.home
 keys.visual_block['^'] = function () tavi.sel(tavi.pos.soft_start_line()) end
 keys.visual_block['$'] = buffer.line_end
 keys.visual_block['x'] = function ()
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode('normal')
 end
 keys.visual_block['i'] = function ()
@@ -589,23 +595,23 @@ keys.visual['c['] = function () tavi.enter_mode('normal') end
 keys.visual['cv'] = function () tavi.enter_mode('visual_block') end
 keys.visual['V'] = function () tavi.enter_mode('visual_line') end
 keys.visual['~'] = function ()
-  tavi.change_character_case()
+  tavi.adjust_act(tavi.change_character_case)
   tavi.enter_mode('normal')
 end
 keys.visual['x'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode('normal')
 end
 keys.visual['d'] = keys.visual['x']
 keys.visual['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
-  buffer:copy()
+  tavi.adjust_act(function () buffer:copy() end)
   tavi.enter_mode('normal')
 end
 keys.visual['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
 
@@ -615,7 +621,7 @@ keys.visual_line[':'] = function () ui.command_entry.enter_mode('lua_command', '
 keys.visual_line['<'] = buffer.back_tab
 keys.visual_line['>'] = buffer.tab
 keys.visual_line['~'] = function ()
-  tavi.change_character_case()
+  tavi.adjust_act(tavi.change_character_case)
   tavi.enter_mode('normal')
 end
 keys.visual_line['esc'] = function () tavi.enter_mode('normal') end
@@ -624,18 +630,18 @@ keys.visual_line['cv'] = function () tavi.enter_mode('visual_block') end
 keys.visual_line['v'] = function () tavi.enter_mode('visual') end
 keys.visual_line['x'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode('normal')
 end
 keys.visual_line['d'] = keys.visual_line['x']
 keys.visual_line['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  buffer:copy()
+  tavi.adjust_act(function () buffer:copy() end)
   tavi.enter_mode('normal')
 end
 keys.visual_line['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
 

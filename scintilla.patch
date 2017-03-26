@@ -1,0 +1,18 @@
+diff -r 3a04a0f0ec9f src/EditView.cxx
+--- a/src/EditView.cxx	Sat Mar 25 09:25:36 2017 +1100
++++ b/src/EditView.cxx	Sat Mar 25 21:32:18 2017 -0500
+@@ -1291,13 +1291,7 @@
+ 	// For each selection draw
+ 	for (size_t r = 0; (r<model.sel.Count()) || drawDrag; r++) {
+ 		const bool mainCaret = r == model.sel.Main();
+-		SelectionPosition posCaret = (drawDrag ? model.posDrag : model.sel.Range(r).caret);
+-		if (vsDraw.caretStyle == CARETSTYLE_BLOCK && !drawDrag && posCaret > model.sel.Range(r).anchor) {
+-			if (posCaret.VirtualSpace() > 0)
+-				posCaret.SetVirtualSpace(posCaret.VirtualSpace() - 1);
+-			else
+-				posCaret.SetPosition(model.pdoc->MovePositionOutsideChar(posCaret.Position()-1, -1));
+-		}
++		const SelectionPosition posCaret = (drawDrag ? model.posDrag : model.sel.Range(r).caret);
+ 		const int offset = posCaret.Position() - posLineStart;
+ 		const XYPOSITION spaceWidth = vsDraw.styles[ll->EndLineStyle()].spaceWidth;
+ 		const XYPOSITION virtualOffset = posCaret.VirtualSpace() * spaceWidth;
