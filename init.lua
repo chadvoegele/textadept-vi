@@ -237,14 +237,14 @@ tavi.pos.soft_start_line = function (pos)
   return p
 end
 
-tavi.pos.word_end = function (pos)
+tavi.pos.word_end = function (pos, only_word_chars)
   local pos = pos or tavi.pos.current()
-  return buffer:word_end_position(pos)
+  return buffer:word_end_position(pos, only_word_chars)
 end
 
-tavi.pos.word_start = function (pos)
+tavi.pos.word_start = function (pos, only_word_chars)
   local pos = pos or tavi.pos.current()
-  return buffer:word_start_position(pos)
+  return buffer:word_start_position(pos, only_word_chars)
 end
 
 tavi.pos.inside_brace_capture = function (brace_char, pos)
@@ -273,12 +273,12 @@ end
 
 tavi.pos.inside_word = function (pos)
   local pos = pos or tavi.pos.current()
-  return tavi.pos.word_end(pos) - 1, tavi.pos.word_start(pos)
+  return tavi.pos.word_end(pos, true) - 1, tavi.pos.word_start(pos, true)
 end
 
 tavi.pos.outside_word = function (pos)
   local pos = pos or tavi.pos.current()
-  return tavi.pos.word_end(pos), tavi.pos.word_start(pos) - 1
+  return tavi.pos.word_end(pos, true), tavi.pos.word_start(pos, true) - 1
 end
 
 -- Thi_s can be

@@ -66,6 +66,8 @@ test_normal = make_test_table()
 test_normal('right', test_text0(), 4, to_chars('lx'), 'Poten potables.\n')
 test_normal('left', test_text0(), 4, to_chars('hx'), 'Potnt potables.\n')
 test_normal('paste_lastline', test_text2(), 129, to_chars('ddp'), 'We hold these truths to be self-evident, \nthat all men are created equal, that they \nare endowed by their Creator with certain \nLiberty and the pursuit of Happiness.\nunalienable Rights, that among these are Life \n')
+test_normal('inner_word', test_text0(), 7, to_chars('diw'), 'Potent .\n')
+test_normal('inner_word2', test_text0(), 8, to_chars('diw'), 'Potent .\n')
 
 test_visual = make_test_table()
 test_visual('cut', test_text0(), 4, to_chars('vx'), 'Potet potables.\n')
