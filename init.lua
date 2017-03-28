@@ -195,7 +195,7 @@ local pos_from_line_change = function (line_offset, pos)
   local n_end_line = tavi.pos.end_line(n_start_line)
   local n_pos = n_start_line + offset
   n_pos = n_pos < n_start_line and n_start_line or n_pos
-  n_pos = n_pos > n_end_line and n_end_line+1 or n_pos  -- start of next line
+  n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
   return n_pos
 end
 
@@ -211,14 +211,16 @@ tavi.pos.line_up = function (c) return pos_from_line_change(-(c or 1)) end
 tavi.pos.line_down = function (c) return pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
 
+-- -2: ...end of lin_e\n <- block caret shows on last char
+-- -1: ...end of line_\n
+-- 0: ...end of line\n_
 tavi.pos.end_line = function (pos, offset)
   local pos = pos or tavi.pos.current()
-  local line = buffer:line_from_position(pos)
-  -- -2: ...end of lin_e\n <- block caret shows on last char
-  -- -1: ...end of line_\n
-  -- 0: ...end of line\n_
   local offset = offset or -2
-  return buffer:line_length(line) + buffer:position_from_line(line) + offset
+  local line = buffer:line_from_position(pos)
+  local eol = buffer:line_length(line) + buffer:position_from_line(line) + offset
+  local sol = tavi.pos.start_line(pos)
+  return eol >= sol and eol or sol   -- ensure same line
 end
 
 tavi.pos.start_line = function (pos)
