@@ -578,7 +578,7 @@ keys.visual_block['0'] = buffer.home
 keys.visual_block['^'] = function () tavi.sel(tavi.pos.soft_start_line()) end
 keys.visual_block['$'] = buffer.line_end
 keys.visual_block['x'] = function ()
-  tavi.adjust_act(function() buffer:cut() end)
+  buffer:cut()
   tavi.enter_mode('normal')
 end
 keys.visual_block['i'] = function ()
