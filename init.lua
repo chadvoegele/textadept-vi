@@ -497,7 +497,10 @@ keys.normal['p'] = function ()
     tavi.move.start_line()
     buffer:paste()
   else
-    tavi.move.character_right()
+    local eol = tavi.pos.end_line(nil, -1)
+    local paste_at = tavi.pos.current() + 1
+    paste_at = paste_at > eol and eol or paste_at
+    tavi.moveto(paste_at)
     buffer.paste()
   end
 end
