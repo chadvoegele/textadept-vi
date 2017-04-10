@@ -57,9 +57,17 @@ end
 -- Scintilla selections with block caret act as line caret using left block boundary.
 tavi.pre_adjust_selection = function ()
   local pos = tavi.pos.current()
-  local anchor = buffer.anchor
-  if pos >= anchor then
-    tavi.select(pos+1, anchor)
+  local anchor = tavi.pos.anchor()
+  if keys.MODE == 'visual_block' then
+    local pos_offset = pos - tavi.pos.start_line(pos)
+    local anchor_offset = anchor - tavi.pos.start_line(anchor)
+    if pos_offset >= anchor_offset then
+      tavi.select_block(pos+1, anchor)
+    end
+  else
+    if pos >= anchor then
+      tavi.select(pos+1, anchor)
+    end
   end
 end
 
@@ -87,6 +95,7 @@ tavi.enter_mode = function (mode)
     buffer.virtual_space_options = buffer.VS_RECTANGULARSELECTION
     buffer.rectangular_selection_anchor = pos
     buffer.rectangular_selection_caret = pos
+    tavi.select_block(pos, pos)
   end
 
   keys.MODE = mode
@@ -203,8 +212,12 @@ tavi.pos.line = function (l)
   if l < 0 or l > buffer.line_count then return nil end
   return buffer:position_from_line(l)
 end
-tavi.pos.current = function () return buffer.current_pos end
-tavi.pos.anchor = function () return buffer.anchor end
+tavi.pos.current = function ()
+  return keys.MODE == 'visual_block' and buffer.rectangular_selection_caret or buffer.current_pos
+end
+tavi.pos.anchor = function ()
+  return keys.MODE == 'visual_block' and buffer.rectangular_selection_anchor or buffer.anchor
+end
 tavi.pos.character_right =  function (c) return tavi.pos.current()+(c or 1) end
 tavi.pos.character_left =  function (c) return tavi.pos.current()-(c or 1) end
 tavi.pos.line_up = function (c) return pos_from_line_change(-(c or 1)) end
@@ -347,7 +360,7 @@ tavi.copy = make_action(copy_action)
 local select_action = function (endp, startp)
   local pos = tavi.pos.current()
   local endp = endp or pos
-  local startp = startp or buffer.anchor
+  local startp = startp or tavi.pos.anchor()
   -- Emulate vim/zsh/tmux block caret selection behavior
   -- make a pre-adjustment so we can ignore it in the conditions below
   if pos == startp and pos == endp then
@@ -362,10 +375,37 @@ local select_action = function (endp, startp)
 end
 tavi.select = make_action(select_action)
 
+local select_block_action = function (endp, startp)
+  local pos = tavi.pos.current()
+  local endp = endp or pos
+  local startp = startp or tavi.pos.anchor()
+  local pos_offset = pos - tavi.pos.start_line(pos)
+  local startp_offset = startp - tavi.pos.start_line(startp)
+  local endp_offset = endp - tavi.pos.start_line(endp)
+  if pos_offset == startp_offset and pos_offset == endp_offset then
+    startp = startp + 1
+    startp_offset = startp_offset + 1
+  end
+  if pos_offset < startp_offset and endp_offset >= startp_offset then
+    startp = startp - 1
+  elseif pos_offset > startp_offset and endp_offset <= startp_offset then
+    startp = startp + 1
+  end
+  buffer.rectangular_selection_caret = endp
+  buffer.rectangular_selection_anchor = startp
+  if not HEADLESS then
+    buffer:move_caret_inside_view()
+    buffer:scroll_caret()
+    buffer:choose_caret_x()
+    events.emit(events.UPDATE_UI)
+  end
+end
+tavi.select_block = make_action(select_block_action)
+
 local select_line_action = function (endp, startp)
   local pos = tavi.pos.start_line(tavi.pos.current())
   local endp = tavi.pos.start_line(endp)
-  local startp = startp or tavi.pos.start_line(buffer.anchor)
+  local startp = startp or tavi.pos.start_line(tavi.pos.anchor())
   local prev_startp = pos_from_line_change(-1, startp)
   local next_startp = pos_from_line_change(1, startp)
   if pos == startp and pos == endp then
@@ -567,28 +607,19 @@ end)
 keys.normal['c'] = make_canonical_movements(visual_change_action)
 
 -- Visual Block
--- TODO: Needs work
-keys.visual_block = {}
+keys.visual_block = make_canonical_movements(tavi.select_block)
 keys.visual_block['esc'] = function () tavi.enter_mode('normal') end
 keys.visual_block['c['] = function () tavi.enter_mode('normal') end
-keys.visual_block['down'] = buffer.line_down_rect_extend
-keys.visual_block['up'] = buffer.line_up_rect_extend
-keys.visual_block['h'] = buffer.char_left_rect_extend
-keys.visual_block['j'] = buffer.line_down_rect_extend
-keys.visual_block['k'] = buffer.line_up_rect_extend
-keys.visual_block['l'] = buffer.char_right_rect_extend
-keys.visual_block['0'] = buffer.home
-keys.visual_block['^'] = function () tavi.sel(tavi.pos.soft_start_line()) end
-keys.visual_block['$'] = buffer.line_end
 keys.visual_block['x'] = function ()
-  buffer:cut()
+  tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode('normal')
 end
-keys.visual_block['i'] = function ()
+keys.visual_block['I'] = function ()
   tavi.enter_mode(nil)
 end
 keys.visual_block['v'] = function () tavi.enter_mode('visual') end
 keys.visual_block['V'] = function () tavi.enter_mode('visual_line') end
+keys.visual_block[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
 
 -- Visual
 keys.visual = make_canonical_movements(tavi.select)

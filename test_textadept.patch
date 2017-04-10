@@ -86,7 +86,17 @@ diff -r 5969451ae1fe src/textadept.c
  #include "ScintillaTerm.h"
  #include "cdk_int.h"
  #include "termkey.h"
-@@ -2634,3 +2640,83 @@
+@@ -1581,6 +1587,9 @@
+   lua_pushboolean(L, 1), lua_setglobal(L, "CURSES");
+   show_tabs = 0; // TODO: tabs
+ #endif
++#if HEADLESS
++  lua_pushboolean(L, 1), lua_setglobal(L, "HEADLESS");
++#endif
+   const char *charset = NULL;
+ #if GTK
+   g_get_charset(&charset);
+@@ -2634,3 +2643,83 @@
    return main(__argc, __argv); // MSVC extensions
  }
  #endif

@@ -2,9 +2,18 @@
 textadept-vi is my humble attempt to bring vi-style modal editing to the (irresistibly fun-to-hack) Textadept editor. This project is NOT an attempt to recreate vi/vim via Textadept. Rather, it tries to bring the essential vi key bindings in a minimal and extensible way.
 
 # Installation
-```lua
+```bash
 git clone https://github.com/chadvoegele/textadept-vi.git ~/.textadept/modules/textadept-vi
 echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
+```
+
+In $TEXTADEPT_HOME/src/scintilla, apply the patches, `scintilla_*.patch`, and rebuild.
+```bash
+cd $TEXTADEPT_HOME/src/scintilla
+patch -p1 < scintilla_block_cursor_selection.patch
+patch -p1 < scintilla_set_rect_range.patch
+cd $TEXTADEPT_HOME/src
+make
 ```
 
 # Status
@@ -21,7 +30,6 @@ echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
 * Command Mode (enters 'lua_command'): :
 
 ## Needs Some Work
-* Visual Block Mode
 * Find: ?
 * Automatic Indentation: =
 * Repeat Last Change: .

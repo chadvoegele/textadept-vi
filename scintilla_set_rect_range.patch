@@ -1,0 +1,41 @@
+diff -r 3a04a0f0ec9f src/Editor.cxx
+--- a/src/Editor.cxx	Sat Mar 25 09:25:36 2017 +1100
++++ b/src/Editor.cxx	Mon Apr 10 13:32:38 2017 -0500
+@@ -564,19 +564,26 @@
+ 
+ void Editor::SetRectangularRange() {
+ 	if (sel.IsRectangular()) {
+-		int xAnchor = XFromPosition(sel.Rectangular().anchor);
+-		int xCaret = XFromPosition(sel.Rectangular().caret);
+-		if (sel.selType == Selection::selThin) {
+-			xCaret = xAnchor;
+-		}
+-		int lineAnchorRect = pdoc->LineFromPosition(sel.Rectangular().anchor.Position());
+-		int lineCaret = pdoc->LineFromPosition(sel.Rectangular().caret.Position());
+-		int increment = (lineCaret > lineAnchorRect) ? 1 : -1;
+-		for (int line=lineAnchorRect; line != lineCaret+increment; line += increment) {
+-			SelectionRange range(SPositionFromLineX(line, xCaret), SPositionFromLineX(line, xAnchor));
++		int caretLine = pdoc->LineFromPosition(sel.Rectangular().caret.Position());
++		int caretLineStart = pdoc->LineStart(caretLine);
++		int caretOffset = sel.Rectangular().caret.Position() - caretLineStart;
++
++		int anchorLine = pdoc->LineFromPosition(sel.Rectangular().anchor.Position());
++		int anchorLineStart = pdoc->LineStart(anchorLine);
++		int anchorOffset = sel.Rectangular().anchor.Position() - anchorLineStart;
++
++		int increment = (caretLine > anchorLine) ? 1 : -1;
++		for (int line=anchorLine; line != caretLine+increment; line += increment) {
++			SelectionPosition lineStart(pdoc->LineStart(line));
++			SelectionPosition lineEnd(pdoc->LineEnd(line));
++			SelectionPosition selCaret(lineStart.Position()+caretOffset);
++			SelectionPosition selAnchor(lineStart.Position()+anchorOffset);
++			selCaret = selCaret < lineEnd ? selCaret : lineEnd;
++			selAnchor = selAnchor < lineEnd ? selAnchor : lineEnd;
++			SelectionRange range(selCaret, selAnchor);
+ 			if ((virtualSpaceOptions & SCVS_RECTANGULARSELECTION) == 0)
+ 				range.ClearVirtualSpace();
+-			if (line == lineAnchorRect)
++			if (line == anchorLine)
+ 				sel.SetSelection(range);
+ 			else
+ 				sel.AddSelectionWithoutTrim(range);

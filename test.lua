@@ -3,9 +3,54 @@ local textadept = require('textadept')
 local tavi = require('textadept-vi')
 local luaunit = require('luaunit')
 
+function parse_key (k, pk)
+  local pk = pk or { ['shift'] = false, ['control'] = false, ['alt'] = false, ['meta'] = false }
+  if #k == 1 then
+    pk.key = k
+    return pk
+  end
+
+  code_map = {}
+  code_map['s'] = 'shift'
+  code_map['c'] = 'control'
+  code_map['a'] = 'alt'
+  code_map['m'] = 'meta'
+
+  local fk = string.sub(k, 1, 1)
+  pk[code_map[fk]] = true
+  return parse_key(string.sub(k, 2), pk)
+end
+
+local to_chars = function (str)
+  arr = {}
+  for i=1,#str do
+    arr[i] = string.sub(str,i,i)
+  end
+  return arr
+end
+
+local function flatten (...)
+  local s = type(...) == 'table' and ... or {...}
+  local t = {}
+  local ti = 1
+  for _,v in ipairs(s) do
+    if type(v) == 'table' then
+      for _,fv in ipairs(flatten(v)) do
+        t[ti] = fv
+        ti = ti +1
+      end
+    else
+      t[ti] = v
+      ti = ti +1
+    end
+  end
+  return t
+end
+
 local emit_keys = function (keys)
   for _,k in ipairs(keys) do
-    events.emit(events.KEYPRESS, string.byte(k))
+    local pk = parse_key(k)
+    events.emit(events.KEYPRESS, string.byte(pk.key), pk.shift, pk.control, pk.alt, pk.meta)
   end
 end
 
@@ -30,14 +75,6 @@ local make_test_table = function ()
     end
   })
   return test_table
-end
-
-local to_chars = function (str)
-  arr = {}
-  for i=1,#str do
-    arr[i] = string.sub(str,i,i)
-  end
-  return arr
 end
 
 local test_text0 = function ()
@@ -84,5 +121,9 @@ test_visual_line('down', test_text2(), 43, to_chars('Vjx'), 'We hold these truth
 test_visual_line('3down', test_text2(), 0, to_chars('V3jx'), 'Liberty and the pursuit of Happiness.\n')
 test_visual_line('up', test_text2(), 43, to_chars('Vkx'), 'are endowed by their Creator with certain \nunalienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
 test_visual_line('2up', test_text2(), 129, to_chars('V2kx'), 'We hold these truths to be self-evident, \nLiberty and the pursuit of Happiness.\n')
+
+test_visual_block = make_test_table()
+test_visual_block('cutrightdown', test_text2(), 0, flatten('cv', to_chars('llljjjx')), 'old these truths to be self-evident, \n all men are created equal, that they \nendowed by their Creator with certain \nienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
+test_visual_block('cutupleft', test_text2(), 152, flatten('cv', to_chars('hhhkkkx')), 'We hold these truths e self-evident, \nthat all men are creaequal, that they \nare endowed by their tor with certain \nunalienable Rights, tamong these are Life \nLiberty and the pursuit of Happiness.\n')
 
 os.exit(luaunit.LuaUnit.run())
