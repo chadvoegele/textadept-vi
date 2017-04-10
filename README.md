@@ -34,6 +34,21 @@ make
 * Automatic Indentation: =
 * Repeat Last Change: .
 
+# Tests
+In $TEXTADEPT_HOME, apply the patch, `test_textadept.patch`, and build textadept_headless.so.
+```bash
+cd $TEXTADEPT_HOME
+patch -p1 < test_textadept.patch
+cd $TEXTADEPT_HOME/src
+make headless
+```
+
+Then run the tests.
+```bash
+cd $TEXTADEPTVI_HOME
+lua test.lua -v
+```
+
 # Contributions
 All contributions are welcome!
 
