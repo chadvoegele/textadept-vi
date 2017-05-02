@@ -614,9 +614,27 @@ keys.visual_block['x'] = function ()
   tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode('normal')
 end
+keys.visual_block['y'] = function ()
+  tavi.state.paste_mode = tavi.PASTE_HERE
+  tavi.adjust_act(function () buffer:copy() end)
+  tavi.enter_mode('normal')
+end
 keys.visual_block['I'] = function ()
+  local pos = tavi.pos.current()
+  local pos_offset = pos - tavi.pos.start_line(pos)
+  local anchor = tavi.pos.anchor()
+  local anchor_eol = tavi.pos.end_line(anchor)
+  local anchor_off = tavi.pos.start_line(anchor) + pos_offset
+  anchor_off = anchor_off > anchor_eol and anchor_eol or anchor_off
+  buffer.rectangular_selection_caret = pos
+  buffer.rectangular_selection_anchor = anchor_off
   tavi.enter_mode(nil)
 end
+keys.visual_block['c'] = function ()
+  tavi.adjust_act(function() buffer:cut() end)
+  tavi.enter_mode(nil)
+end
+keys.visual_block['C'] = keys.visual_block['c']
 keys.visual_block['v'] = function () tavi.enter_mode('visual') end
 keys.visual_block['V'] = function () tavi.enter_mode('visual_line') end
 keys.visual_block[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
