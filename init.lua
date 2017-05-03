@@ -229,7 +229,7 @@ tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
 -- 0: ...end of line\n_
 tavi.pos.end_line = function (pos, offset)
   local pos = pos or tavi.pos.current()
-  local offset = offset or -2
+  local offset = offset or -1
   local line = buffer:line_from_position(pos)
   local eol = buffer:line_length(line) + buffer:position_from_line(line) + offset
   local sol = tavi.pos.start_line(pos)
@@ -382,7 +382,7 @@ local select_block_action = function (endp, startp)
   local pos_offset = pos - tavi.pos.start_line(pos)
   local startp_offset = startp - tavi.pos.start_line(startp)
   local endp_offset = endp - tavi.pos.start_line(endp)
-  if pos_offset == startp_offset and pos_offset == endp_offset then
+  if pos_offset == startp_offset and pos_offset == endp_offset and pos < tavi.pos.end_line(pos) then
     startp = startp + 1
     startp_offset = startp_offset + 1
   end
@@ -492,7 +492,7 @@ local make_canonical_movements = function (act)
     ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) end end end),
     ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) end end end),
   })
-  movements['$'] = act.end_line
+  movements['$'] = function () act.end_line(nil, -2) end
   movements['^'] = act.soft_start_line
   movements['0'] = act.start_line
   movements['w'] = act.word_end
@@ -623,7 +623,7 @@ keys.visual_block['I'] = function ()
   local pos = tavi.pos.current()
   local pos_offset = pos - tavi.pos.start_line(pos)
   local anchor = tavi.pos.anchor()
-  local anchor_eol = tavi.pos.end_line(anchor)
+  local anchor_eol = tavi.pos.end_line(anchor, -1)
   local anchor_off = tavi.pos.start_line(anchor) + pos_offset
   anchor_off = anchor_off > anchor_eol and anchor_eol or anchor_off
   buffer.rectangular_selection_caret = pos
