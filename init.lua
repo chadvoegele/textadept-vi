@@ -3,6 +3,7 @@ local tavi = {}
 -- Init
 buffer.caret_style = _SCINTILLA.constants.CARETSTYLE_BLOCK
 buffer.caret_period = 0
+buffer.caret_sticky = buffer.CARETSTICKY_ON  -- non-configurable by tavi.state.line_offset below
 
 -- Constants
 tavi.PASTE_LINE = 'visual_line'
@@ -10,7 +11,8 @@ tavi.PASTE_HERE = 'here'
 
 -- State
 tavi.state = {
-  paste_mode = tavi.PASTE_HERE
+  paste_mode = tavi.PASTE_HERE,
+  line_offset = 0,
 }
 
 -- Operations
@@ -26,10 +28,21 @@ tavi.sel = function (endp, startp)
   end
 end
 
+tavi.get_line_offset = function ()
+  local pos = pos or tavi.pos.current()
+  local start_line = tavi.pos.start_line(pos)
+  local offset = pos - start_line
+  return offset
+end
+
+tavi.set_line_offset = function ()
+  buffer:choose_caret_x()  -- important for rectangular selections
+  tavi.state.line_offset = tavi.get_line_offset()
+end
+
 tavi.moveto = function (pos, offset)
   if pos then
     buffer:goto_pos(pos + (offset or 0))
-    buffer:choose_caret_x()  -- important for rectangular selections
     return true
   end
 end
@@ -194,15 +207,13 @@ end
 
 local pos_from_line_change = function (line_offset, pos)
   local pos = pos or tavi.pos.current()
-  local start_line = tavi.pos.start_line(pos)
-  local offset = pos - start_line
   local line = buffer:line_from_position(pos)
   local n_line = line + line_offset
   n_line = n_line < 0 and 0 or n_line
   n_line = n_line > buffer.line_count and buffer.line_count or n_line
   local n_start_line = tavi.pos.line(n_line)
   local n_end_line = tavi.pos.end_line(n_start_line)
-  local n_pos = n_start_line + offset
+  local n_pos = n_start_line + tavi.state.line_offset
   n_pos = n_pos < n_start_line and n_start_line or n_pos
   n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
   return n_pos
@@ -396,7 +407,6 @@ local select_block_action = function (endp, startp)
   if not HEADLESS then
     buffer:move_caret_inside_view()
     buffer:scroll_caret()
-    buffer:choose_caret_x()
     events.emit(events.UPDATE_UI)
   end
 end
@@ -406,8 +416,8 @@ local select_line_action = function (endp, startp)
   local pos = tavi.pos.start_line(tavi.pos.current())
   local endp = tavi.pos.start_line(endp)
   local startp = startp or tavi.pos.start_line(tavi.pos.anchor())
-  local prev_startp = pos_from_line_change(-1, startp)
-  local next_startp = pos_from_line_change(1, startp)
+  local prev_startp = tavi.pos.start_line(pos_from_line_change(-1, startp))
+  local next_startp = tavi.pos.start_line(pos_from_line_change(1, startp))
   if pos == startp and pos == endp then
     startp = next_startp
   end
@@ -477,35 +487,35 @@ end
 local make_canonical_movements = function (act)
   local movements = make_number_functor_table({
     ['g'] = {
-      ['g'] = function (l) return function () act.line(l-1) end end
+      ['g'] = function (l) return function () act.line(l-1) tavi.set_line_offset() end end
     },
-    ['h'] = function (n) return function () act.character_left(n) end end,
-    ['left'] = function (n) return function () act.character_left(n) end end,
+    ['h'] = function (n) return function () act.character_left(n) tavi.set_line_offset() end end,
+    ['left'] = function (n) return function () act.character_left(n) tavi.set_line_offset() end end,
     ['j'] = function (n) return function () act.line_down(n) end end,
     ['down'] = function (n) return function () act.line_down(n) end end,
     ['k'] = function (n) return function () act.line_up(n) end end,
     ['up'] = function (n) return function () act.line_up(n) end end,
-    ['l'] = function (n) return function () act.character_right(n) end end,
-    ['right'] = function (n) return function () act.character_right(n) end end,
-    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) end end end),
-    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) end end end),
-    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) end end end),
-    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) end end end),
+    ['l'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
+    ['right'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
+    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_line_offset() end end end),
+    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_line_offset() end end end),
+    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_line_offset() end end end),
+    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_line_offset() end end end),
   })
-  movements['$'] = function () act.end_line(nil, -2) end
-  movements['^'] = act.soft_start_line
-  movements['0'] = act.start_line
-  movements['w'] = act.word_end
-  movements['b'] = act.word_start
-  movements['G'] = act.document_end
-  movements['i'] = make_char_functor_table(function (c) return function () act.inside_brace_capture(c) end end)
-  movements['i']["'"] = function () act.inside_character("'") end
-  movements['i']['"'] = function () act.inside_character('"') end
-  movements['a'] = make_char_functor_table(function (c) return function () act.outside_brace_capture(c) end end)
-  movements['a']["'"] = function () act.outside_character("'") end
-  movements['a']['"'] = function () act.outside_character('"') end
-  movements['i']['w'] = act.inside_word
-  movements['a']['w'] = act.outside_word
+  movements['$'] = function () act.end_line(nil, -2) tavi.set_line_offset() end
+  movements['^'] = function () act.soft_start_line() tavi.set_line_offset() end
+  movements['0'] = function () act.start_line() tavi.set_line_offset() end
+  movements['w'] = function () act.word_end() tavi.set_line_offset() end
+  movements['b'] = function () act.word_start() tavi.set_line_offset() end
+  movements['G'] = function () act.document_end() tavi.set_line_offset() end
+  movements['i'] = make_char_functor_table(function (c) return function () act.inside_brace_capture(c) tavi.set_line_offset() end end)
+  movements['i']["'"] = function () act.inside_character("'") tavi.set_line_offset() end
+  movements['i']['"'] = function () act.inside_character('"') tavi.set_line_offset() end
+  movements['a'] = make_char_functor_table(function (c) return function () act.outside_brace_capture(c) tavi.set_line_offset() end end)
+  movements['a']["'"] = function () act.outside_character("'") tavi.set_line_offset() end
+  movements['a']['"'] = function () act.outside_character('"') tavi.set_line_offset() end
+  movements['i']['w'] = function () act.inside_word() tavi.set_line_offset() end
+  movements['a']['w'] = function () act.outside_word() tavi.set_line_offset() end
   return movements
 end
 
