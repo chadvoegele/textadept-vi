@@ -1,7 +1,7 @@
 local tavi = {}
 
 -- Init
-buffer.caret_style = _SCINTILLA.constants.CARETSTYLE_BLOCK
+buffer.caret_style = buffer.CARETSTYLE_BLOCK
 buffer.caret_period = 0
 buffer.caret_sticky = buffer.CARETSTICKY_ON  -- non-configurable by tavi.state.line_offset below
 
