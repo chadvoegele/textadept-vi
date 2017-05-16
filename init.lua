@@ -405,7 +405,6 @@ local select_block_action = function (endp, startp)
   buffer.rectangular_selection_caret = endp
   buffer.rectangular_selection_anchor = startp
   if not HEADLESS then
-    buffer:move_caret_inside_view()
     buffer:scroll_caret()
     events.emit(events.UPDATE_UI)
   end
