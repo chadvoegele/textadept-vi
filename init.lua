@@ -62,6 +62,12 @@ tavi.replace_character = function (replace_char)
   buffer:replace_sel(replace_char)
 end
 
+tavi.replace_selection = function (replace_char)
+  local sel_text = buffer:get_sel_text()
+  local repl_text = string.gsub(sel_text, '[^\n]', replace_char)
+  buffer:replace_sel(repl_text)
+end
+
 tavi.clear_selection = function (pos)
   local pos = pos or tavi.pos.current()
   buffer:set_empty_selection(pos)
@@ -677,6 +683,7 @@ keys.visual['c'] = function ()
   tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
+keys.visual['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode('normal') end end)
 
 -- Visual Line
 keys.visual_line = make_canonical_movements(tavi.select_line)
@@ -707,6 +714,7 @@ keys.visual_line['c'] = function ()
   tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
+keys.visual_line['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode('normal') end end)
 
 -- Prevent Fallthrough to Insert Mode
 local prevent_fallthrough = function (t)
