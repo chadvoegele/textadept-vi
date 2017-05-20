@@ -240,6 +240,8 @@ tavi.pos.character_left =  function (c) return tavi.pos.current()-(c or 1) end
 tavi.pos.line_up = function (c) return pos_from_line_change(-(c or 1)) end
 tavi.pos.line_down = function (c) return pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
+tavi.pos.page_up = function (n) return pos_from_line_change((n or 1) * -buffer.lines_on_screen) end
+tavi.pos.page_down = function (n) return pos_from_line_change((n or 1) * buffer.lines_on_screen) end
 
 -- -2: ...end of lin_e\n <- block caret shows on last char
 -- -1: ...end of line_\n
@@ -502,6 +504,8 @@ local make_canonical_movements = function (act)
     ['up'] = function (n) return function () act.line_up(n) end end,
     ['l'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
     ['right'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
+    ['pgup'] = function (n) return function () act.page_up(n) end end,
+    ['pgdn'] = function (n) return function () act.page_down(n) end end,
     ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_line_offset() end end end),
     ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_line_offset() end end end),
     ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_line_offset() end end end),
