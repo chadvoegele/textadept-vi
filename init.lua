@@ -104,6 +104,10 @@ tavi.enter_mode = function (mode)
   if mode == 'normal' then
     tavi.clear_selection()
     buffer:cancel()
+  elseif mode == 'paste' then
+    tavi.clear_selection()
+    buffer:cancel()
+    events.connect(events.KEYPRESS, paste_mode_keypress, 2)
   elseif mode == 'visual' then
     tavi.select(buffer.selection_end, buffer.selection_start)
   elseif mode == 'visual_line' then
@@ -123,6 +127,7 @@ end
 
 tavi.key_mode_text = {
   ['insert'] = '-- INSERT --',
+  ['paste'] = '-- INSERT (paste) --',
   ['visual_block'] = '-- VISUAL BLOCK --',
   ['visual_line'] = '-- VISUAL LINE --',
   ['visual'] = '-- VISUAL --',
@@ -143,6 +148,25 @@ for _, event in ipairs(set_normal_mode_events) do
   events.connect(event, function ()
     tavi.enter_mode('normal')
   end)
+end
+
+-- Paste Mode
+function paste_mode_keypress(code, shift, control, alt, meta, caps_lock)
+  if shift or control or alt or meta or caps_lock then
+    return true
+  end
+
+  buffer:insert_text(-1, string.char(code));
+  tavi.move.character_right()
+  return true
+end
+
+tavi.exit_mode = function (mode)
+  if mode == 'paste' then
+    events.disconnect(events.KEYPRESS, paste_mode_keypress)
+    tavi.enter_mode('normal')
+    return true
+  end
 end
 
 -- Positions
@@ -736,5 +760,10 @@ for k, m in ipairs(modes) do prevent_fallthrough(keys[m]) end
 -- Insert Mode
 keys['esc'] = function () tavi.enter_mode('normal') end
 keys['c['] = function () tavi.enter_mode('normal') end
+
+-- Paste Mode
+keys.paste = {}
+keys.paste['c['] = function () tavi.exit_mode('paste') end
+keys.paste['esc'] = function () tavi.exit_mode('paste') end
 
 return tavi
