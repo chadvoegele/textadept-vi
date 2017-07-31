@@ -28,7 +28,7 @@ tavi.sel = function (endp, startp)
   end
 end
 
-tavi.get_line_offset = function ()
+tavi.get_line_offset = function (pos)
   local pos = pos or tavi.pos.current()
   local start_line = tavi.pos.start_line(pos)
   local offset = pos - start_line
@@ -62,10 +62,44 @@ tavi.replace_character = function (replace_char)
   buffer:replace_sel(replace_char)
 end
 
+tavi.pos_from_line_change = function (line_change, pos, line_offset)
+  local line_offset = line_offset or tavi.state.line_offset
+  local pos = pos or tavi.pos.current()
+  local line = buffer:line_from_position(pos)
+  local n_line = line + line_change
+  n_line = n_line < 0 and 0 or n_line
+  n_line = n_line > buffer.line_count and buffer.line_count or n_line
+  local n_start_line = tavi.pos.line(n_line)
+  local n_end_line = tavi.pos.end_line(n_start_line)
+  local n_pos = n_start_line + line_offset
+  n_pos = n_pos < n_start_line and n_start_line or n_pos
+  n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
+  return n_pos
+end
+
 tavi.replace_selection = function (replace_char)
-  local sel_text = buffer:get_sel_text()
-  local repl_text = string.gsub(sel_text, '[^\n]', replace_char)
-  buffer:replace_sel(repl_text)
+  if buffer.selection_is_rectangle then
+    local startp = tavi.pos.current() < tavi.pos.anchor() and tavi.pos.current() or tavi.pos.anchor()
+    local endp = tavi.pos.current() < tavi.pos.anchor() and tavi.pos.anchor() or tavi.pos.current()
+    local start_offset = tavi.get_line_offset(startp)
+    local end_offset = tavi.get_line_offset(endp)
+    local l = 0
+    local sp = tavi.pos_from_line_change(l, startp, start_offset)
+    local ep = tavi.pos_from_line_change(l, startp, end_offset)
+    while ep <= endp do
+      buffer:set_sel(sp, ep)
+      local sel_text = buffer:get_sel_text()
+      local repl_text = string.gsub(sel_text, '[^\n]', replace_char)
+      buffer:replace_sel(repl_text)
+      l = l + 1
+      sp = tavi.pos_from_line_change(l, startp, start_offset)
+      ep = tavi.pos_from_line_change(l, startp, end_offset)
+    end
+  else
+    local sel_text = buffer:get_sel_text()
+    local repl_text = string.gsub(sel_text, '[^\n]', replace_char)
+    buffer:replace_sel(repl_text)
+  end
 end
 
 tavi.clear_selection = function (pos)
@@ -235,20 +269,6 @@ local find_brace_capture = function (brace_char, pos)
   return close_brace_pos, open_brace_pos
 end
 
-local pos_from_line_change = function (line_offset, pos)
-  local pos = pos or tavi.pos.current()
-  local line = buffer:line_from_position(pos)
-  local n_line = line + line_offset
-  n_line = n_line < 0 and 0 or n_line
-  n_line = n_line > buffer.line_count and buffer.line_count or n_line
-  local n_start_line = tavi.pos.line(n_line)
-  local n_end_line = tavi.pos.end_line(n_start_line)
-  local n_pos = n_start_line + tavi.state.line_offset
-  n_pos = n_pos < n_start_line and n_start_line or n_pos
-  n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
-  return n_pos
-end
-
 tavi.pos.line = function (l)
   if l < 0 or l > buffer.line_count then return nil end
   return buffer:position_from_line(l)
@@ -261,11 +281,11 @@ tavi.pos.anchor = function ()
 end
 tavi.pos.character_right =  function (c) return tavi.pos.current()+(c or 1) end
 tavi.pos.character_left =  function (c) return tavi.pos.current()-(c or 1) end
-tavi.pos.line_up = function (c) return pos_from_line_change(-(c or 1)) end
-tavi.pos.line_down = function (c) return pos_from_line_change(c or 1) end
+tavi.pos.line_up = function (c) return tavi.pos_from_line_change(-(c or 1)) end
+tavi.pos.line_down = function (c) return tavi.pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
-tavi.pos.page_up = function (n) return pos_from_line_change((n or 1) * -buffer.lines_on_screen) end
-tavi.pos.page_down = function (n) return pos_from_line_change((n or 1) * buffer.lines_on_screen) end
+tavi.pos.page_up = function (n) return tavi.pos_from_line_change((n or 1) * -buffer.lines_on_screen) end
+tavi.pos.page_down = function (n) return tavi.pos_from_line_change((n or 1) * buffer.lines_on_screen) end
 
 -- -2: ...end of lin_e\n <- block caret shows on last char
 -- -1: ...end of line_\n
@@ -447,8 +467,8 @@ local select_line_action = function (endp, startp)
   local pos = tavi.pos.start_line(tavi.pos.current())
   local endp = tavi.pos.start_line(endp)
   local startp = startp or tavi.pos.start_line(tavi.pos.anchor())
-  local prev_startp = tavi.pos.start_line(pos_from_line_change(-1, startp))
-  local next_startp = tavi.pos.start_line(pos_from_line_change(1, startp))
+  local prev_startp = tavi.pos.start_line(tavi.pos_from_line_change(-1, startp))
+  local next_startp = tavi.pos.start_line(tavi.pos_from_line_change(1, startp))
   if pos == startp and pos == endp then
     startp = next_startp
   end
@@ -681,6 +701,14 @@ keys.visual_block['C'] = keys.visual_block['c']
 keys.visual_block['v'] = function () tavi.enter_mode('visual') end
 keys.visual_block['V'] = function () tavi.enter_mode('visual_line') end
 keys.visual_block[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
+keys.visual_block['r'] = make_char_functor_table(function (c)
+  return function ()
+    local pos = buffer.rectangular_selection_anchor
+    tavi.adjust_act(function () tavi.replace_selection(c) end)
+    tavi.enter_mode('normal')
+    tavi.moveto(pos)
+  end
+end)
 
 -- Visual
 keys.visual = make_canonical_movements(tavi.select)
