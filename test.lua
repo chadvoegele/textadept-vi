@@ -1,7 +1,8 @@
-require('textadept_headless').init({ '--userhome', os.getenv('USERHOME') or os.getenv('HOME') })
 local textadept = require('textadept')
 local tavi = require('textadept-vi')
 local luaunit = require('luaunit')
+
+testtavi = {}
 
 function parse_key (k, pk)
   local pk = pk or { ['shift'] = false, ['control'] = false, ['alt'] = false, ['meta'] = false }
@@ -126,4 +127,68 @@ test_visual_block = make_test_table()
 test_visual_block('cutrightdown', test_text2(), 0, flatten('cv', to_chars('llljjjx')), 'old these truths to be self-evident, \n all men are created equal, that they \nendowed by their Creator with certain \nienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
 test_visual_block('cutupleft', test_text2(), 152, flatten('cv', to_chars('hhhkkkx')), 'We hold these truths e self-evident, \nthat all men are creaequal, that they \nare endowed by their tor with certain \nunalienable Rights, tamong these are Life \nLiberty and the pursuit of Happiness.\n')
 
-os.exit(luaunit.LuaUnit.run())
+-- LuaUnit TextOutput but output to string
+local CaptureTextOutput = luaunit.genericOutput.new() -- derived class
+local CaptureTextOutput_MT = { __index = CaptureTextOutput } -- metatable
+CaptureTextOutput.__class__ = 'CaptureTextOutput'
+
+function CaptureTextOutput.new(runner)
+  local t = luaunit.genericOutput.new(runner, luaunit.VERBOSITY_DEFAULT)
+  t.msg = ''
+  return setmetatable( t, CaptureTextOutput_MT )
+end
+
+function CaptureTextOutput:startSuite() end
+function CaptureTextOutput:startTest(testName) end
+
+function CaptureTextOutput:endTest( node )
+  if node:isPassed() then
+    self.msg = self.msg..'.'
+  else
+    self.msg = self.msg..node.msg..string.sub(node.status, 1, 1)
+  end
+end
+
+function CaptureTextOutput:displayOneFailedTest( index, fail )
+  self.msg = self.msg..index..') '..fail.testName..'\n'
+  self.msg = self.msg..fail.msg..'\n'
+  self.msg = self.msg..fail.stackTrace..'\n'
+  self.msg = self.msg..'\n'
+end
+
+function CaptureTextOutput:displayFailedTests()
+  if self.result.notPassedCount ~= 0 then
+    self.msg = self.msg..'Failed tests:\n'
+    self.msg = self.msg..'-------------\n'
+    for i, v in ipairs(self.result.notPassed) do
+      self:displayOneFailedTest(i, v)
+    end
+  end
+end
+
+function CaptureTextOutput:endSuite()
+  self.msg = self.msg..'\n'
+  self:displayFailedTests()
+  self.msg = self.msg..luaunit.LuaUnit.statusLine( self.result )..'\n'
+  if self.result.notPassedCount == 0 then
+    self.msg = self.msg..'OK\n'
+  end
+end
+
+testtavi.run = function ()
+  testtavi.filename = testtavi.filename or os.tmpname()
+  io.open_file(testtavi.filename)
+  local runner = luaunit.LuaUnit.new()
+  runner.outputType = CaptureTextOutput
+  runner:runSuiteByNames(luaunit.LuaUnit.collectTests())
+  buffer:set_text(runner.output.msg)
+  io.save_file()
+end
+
+events.connect(events.QUIT, function ()
+  if testtavi.filename then
+    os.remove(testtavi.filename)
+  end
+end)
+
+return testtavi

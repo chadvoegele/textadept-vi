@@ -11,7 +11,6 @@ In `$TEXTADEPT_HOME/src/scintilla`, apply the patches, `scintilla_*.patch`, and 
 ```bash
 cd $TEXTADEPT_HOME/src/scintilla
 patch -p1 < scintilla_block_cursor_selection.patch
-patch -p1 < scintilla_set_rect_range.patch
 cd $TEXTADEPT_HOME/src
 make
 ```
@@ -35,18 +34,9 @@ make
 * Repeat Last Change: .
 
 # Tests
-In `$TEXTADEPT_HOME`, apply the patch, `test_textadept.patch`, and build textadept_headless.so.
+Install luaunit and run the tests.
 ```bash
-cd $TEXTADEPT_HOME
-patch -p1 < test_textadept.patch
-cd $TEXTADEPT_HOME/src
-make headless
-```
-
-Then run the tests.
-```bash
-cd $TEXTADEPTVI_HOME
-lua test.lua -v
+textadept -e "require('textadept-vi.test').run()"
 ```
 
 # Contributions
