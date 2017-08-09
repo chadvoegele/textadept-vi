@@ -7,7 +7,7 @@ git clone https://github.com/chadvoegele/textadept-vi.git ~/.textadept/modules/t
 echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
 ```
 
-In `$TEXTADEPT_HOME/src/scintilla`, apply the patches, `scintilla_*.patch`, and rebuild.
+In `$TEXTADEPT_HOME/src/scintilla`, apply the patch, `scintilla_block_cursor_selection.patch`, and rebuild.
 ```bash
 cd $TEXTADEPT_HOME/src/scintilla
 patch -p1 < scintilla_block_cursor_selection.patch
@@ -34,7 +34,7 @@ make
 * Repeat Last Change: .
 
 # Tests
-Install luaunit and run the tests.
+Install `luaunit` and run the tests.
 ```bash
 textadept -e "require('textadept-vi.test').run()"
 ```
