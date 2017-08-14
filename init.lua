@@ -651,7 +651,9 @@ keys.normal['o'] = function()
   tavi.enter_mode(nil)
 end
 keys.normal['a'] = function()
-  buffer:char_right()
+  if (tavi.pos.current() ~= tavi.pos.end_line(nil, -1)) then
+    buffer:char_right()
+  end
   tavi.enter_mode(nil)
 end
 keys.normal['A'] = function()
