@@ -19,7 +19,7 @@ make
 ## Working
 * Motions: h, j, k, l, G, gg, f, F, t, T, $, 0, ^, w, b, i{char}, iw, a{char}, aw
 * Count: all of above work with count prefix i.e. c3fa, d5l, ...
-* Find: /, n, N
+* Find: /, ?, n, N
 * Change Case: ~
 * Replace: r
 * Undo/Redo: u, cr
@@ -29,7 +29,6 @@ make
 * Command Mode (enters 'lua_command'): :
 
 ## Needs Some Work
-* Find: ?
 * Automatic Indentation: =
 * Repeat Last Change: .
 

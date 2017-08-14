@@ -577,8 +577,6 @@ keys.normal = make_canonical_movements(tavi.move)
 keys.normal['~'] = function () tavi.sel(tavi.pos.current()+1) tavi.change_character_case() end
 keys.normal['r'] = make_char_functor_table(function (c) return function () tavi.replace_character(c) end end)
 keys.normal['%'] = textadept.editing.match_brace
-keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
-keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
 -- Cut, Copy, Paste
 keys.normal['x'] = function () tavi.state.paste_mode = tavi.PASTE_HERE tavi.cut.current() end
@@ -619,10 +617,11 @@ end
   -- Undo/Redo
 keys.normal['u'] = buffer.undo
 keys.normal['cr'] = buffer.redo
+keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
+keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
   -- Mode Switching
 keys.normal[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
-keys.normal['/'] = ui.find.find_incremental
 keys.normal['cv'] = function () tavi.enter_mode('visual_block') end
 keys.normal['v'] = function () tavi.enter_mode('visual') end
 keys.normal['V'] = function () tavi.enter_mode('visual_line') end
@@ -670,6 +669,35 @@ local visual_change_action = make_action(function (...)
   return tavi.change(...)
 end)
 keys.normal['c'] = make_canonical_movements(visual_change_action)
+
+-- Find
+tavi.find_incremental_reverse = function ()
+  ui.command_entry:set_text('')
+  ui.command_entry.enter_mode('find_incremental_reverse')
+end
+keys.find_incremental_reverse = {
+  ['\n'] = function()
+    ui.find.find_entry_text = ui.command_entry:get_text() -- save
+    ui.find.find_incremental(ui.command_entry:get_text(), false, true)
+  end,
+  ['cr'] = function()
+    ui.find.find_incremental(ui.command_entry:get_text(), true, true)
+  end,
+  ['\b'] = function()
+    local e = ui.command_entry:position_before(ui.command_entry.length)
+    ui.find.find_incremental(ui.command_entry:text_range(0, e), true)
+    return false -- propagate
+  end
+}
+setmetatable(keys.find_incremental_reverse, {__index = function(_, k)
+               if #k > 1 and k:find('^[cams]*.+$') then return end
+               ui.find.find_incremental(ui.command_entry:get_text()..k, false)
+             end})
+
+keys.normal['/'] = ui.find.find_incremental
+keys.normal['?'] = tavi.find_incremental_reverse
+keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
+keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
 -- Visual Block
 keys.visual_block = make_canonical_movements(tavi.select_block)
