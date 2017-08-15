@@ -617,8 +617,6 @@ end
   -- Undo/Redo
 keys.normal['u'] = buffer.undo
 keys.normal['cr'] = buffer.redo
-keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
-keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
   -- Mode Switching
 keys.normal[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
@@ -691,7 +689,7 @@ keys.find_incremental_reverse = {
 }
 setmetatable(keys.find_incremental_reverse, {__index = function(_, k)
                if #k > 1 and k:find('^[cams]*.+$') then return end
-               ui.find.find_incremental(ui.command_entry:get_text()..k, false)
+               ui.find.find_incremental(ui.command_entry:get_text()..k, false, true)
              end})
 
 keys.normal['/'] = ui.find.find_incremental
