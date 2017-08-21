@@ -16,6 +16,11 @@ tavi.state = {
 }
 
 -- Operations
+local function apply(n, x0, fn)
+  if n == 0 then return x0 end
+  return apply(n-1, fn(x0), fn)
+end
+
 tavi.char_at = function (pos)
   return string.char(buffer.char_at[pos])
 end
@@ -313,14 +318,16 @@ tavi.pos.soft_start_line = function (pos)
   return p
 end
 
-tavi.pos.word_end = function (pos, only_word_chars)
+tavi.pos.word_end = function (n, pos, only_word_chars)
+  local n = n or 1
   local pos = pos or tavi.pos.current()
-  return buffer:word_end_position(pos, only_word_chars)
+  return apply(n, pos, function (pos) return buffer:word_end_position(pos, only_word_chars) end)
 end
 
-tavi.pos.word_start = function (pos, only_word_chars)
+tavi.pos.word_start = function (n, pos, only_word_chars)
+  local n = n or 1
   local pos = pos or tavi.pos.current()
-  return buffer:word_start_position(pos, only_word_chars)
+  return apply(n, pos, function (pos) return buffer:word_start_position(pos, only_word_chars) end)
 end
 
 tavi.pos.inside_brace_capture = function (brace_char, pos)
@@ -349,12 +356,12 @@ end
 
 tavi.pos.inside_word = function (pos)
   local pos = pos or tavi.pos.current()
-  return tavi.pos.word_end(pos, true) - 1, tavi.pos.word_start(pos, true)
+  return tavi.pos.word_end(1, pos, true) - 1, tavi.pos.word_start(1, pos, true)
 end
 
 tavi.pos.outside_word = function (pos)
   local pos = pos or tavi.pos.current()
-  return tavi.pos.word_end(pos, true), tavi.pos.word_start(pos, true)
+  return tavi.pos.word_end(1, pos, true), tavi.pos.word_start(1, pos, true)
 end
 
 -- Thi_s can be
@@ -554,12 +561,12 @@ local make_canonical_movements = function (act)
     ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_line_offset() end end end),
     ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_line_offset() end end end),
     ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_line_offset() end end end),
+    ['w'] = function (n) return function () act.word_end(n) tavi.set_line_offset() end end,
+    ['b'] = function (n) return function () act.word_start(n) tavi.set_line_offset() end end
   })
   movements['$'] = function () act.end_line(nil, -2) tavi.set_line_offset() end
   movements['^'] = function () act.soft_start_line() tavi.set_line_offset() end
   movements['0'] = function () act.start_line() tavi.set_line_offset() end
-  movements['w'] = function () act.word_end() tavi.set_line_offset() end
-  movements['b'] = function () act.word_start() tavi.set_line_offset() end
   movements['G'] = function () act.document_end() tavi.set_line_offset() end
   movements['i'] = make_char_functor_table(function (c) return function () act.inside_brace_capture(c) tavi.set_line_offset() end end)
   movements['i']["'"] = function () act.inside_character("'") tavi.set_line_offset() end
