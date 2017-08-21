@@ -1,4 +1,3 @@
-local textadept = require('textadept')
 local tavi = require('textadept-vi')
 local luaunit = require('luaunit')
 
@@ -31,7 +30,10 @@ local to_chars = function (str)
 end
 
 local function flatten (...)
-  local s = type(...) == 'table' and ... or {...}
+  local s = {...}
+  if #s == 1 then
+    s = s[1]
+  end
   local t = {}
   local ti = 1
   for _,v in ipairs(s) do
@@ -141,6 +143,20 @@ events.connect(events.QUIT, function ()
     os.remove(testtavi.filename)
   end
 end)
+
+test_flatten = {}
+test_flatten['test1'] = function ()
+  luaunit.assertEquals(flatten('c', 'c'), {'c', 'c'})
+end
+test_flatten['test2'] = function ()
+  luaunit.assertEquals(flatten({'c', 'c'}), {'c', 'c'})
+end
+test_flatten['test3'] = function ()
+  luaunit.assertEquals(flatten('c', {'c', 'c'}), {'c', 'c', 'c'})
+end
+test_flatten['test4'] = function ()
+  luaunit.assertEquals(flatten({'c', 'c'}, 'c'), {'c', 'c', 'c'})
+end
 
 local test_text0 = function ()
   local text = 'Potent potables.\n'
