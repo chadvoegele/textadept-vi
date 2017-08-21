@@ -669,31 +669,46 @@ end)
 keys.normal['c'] = make_canonical_movements(visual_change_action)
 
 -- Find
-tavi.find_incremental_reverse = function ()
+local incremental_start
+tavi.find_incremental_reverse = function (text, next, start)
+  local match_case = ui.find.match_case and buffer.FIND_MATCHCASE or 0
+  if start then
+    incremental_start = start
+  end
+  buffer:goto_pos(incremental_start)
+  if text then
+    events.emit(events.FIND, text, next, match_case)
+  end
+end
+keys.find_incremental_reverse = { }
+keys.find_incremental_reverse['\n'] = function()
+  ui.find.find_entry_text = ui.command_entry:get_text() -- save
+  local incremental_start = buffer:position_relative(buffer.current_pos, next and 1 or -1)
+  tavi.find_incremental_reverse(ui.command_entry:get_text(), false, incremental_start)
+end
+keys.find_incremental_reverse['cr'] = function()
+  local incremental_start = buffer:position_relative(buffer.current_pos, next and 1 or -1)
+  tavi.find_incremental_reverse(ui.command_entry:get_text(), true, incremental_start)
+end
+keys.find_incremental_reverse['\b'] = function()
+  local e = ui.command_entry:position_before(ui.command_entry.length)
+  tavi.find_incremental_reverse(ui.command_entry:text_range(0, e), false)
+  return false -- propagate
+end
+keys.find_incremental_reverse['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
+keys.find_incremental_reverse['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
+setmetatable(keys.find_incremental_reverse, {__index = function(_, k)
+               if #k > 1 and k:find('^[cams]*.+$') then return end
+               tavi.find_incremental_reverse(ui.command_entry:get_text()..k, false)
+             end})
+keys.normal['?'] = function ()
+  incremental_start = buffer.current_pos
   ui.command_entry:set_text('')
   ui.command_entry.enter_mode('find_incremental_reverse')
 end
-keys.find_incremental_reverse = {
-  ['\n'] = function()
-    ui.find.find_entry_text = ui.command_entry:get_text() -- save
-    ui.find.find_incremental(ui.command_entry:get_text(), false, true)
-  end,
-  ['cr'] = function()
-    ui.find.find_incremental(ui.command_entry:get_text(), true, true)
-  end,
-  ['\b'] = function()
-    local e = ui.command_entry:position_before(ui.command_entry.length)
-    ui.find.find_incremental(ui.command_entry:text_range(0, e), true)
-    return false -- propagate
-  end
-}
-setmetatable(keys.find_incremental_reverse, {__index = function(_, k)
-               if #k > 1 and k:find('^[cams]*.+$') then return end
-               ui.find.find_incremental(ui.command_entry:get_text()..k, false, true)
-             end})
-
 keys.normal['/'] = ui.find.find_incremental
-keys.normal['?'] = tavi.find_incremental_reverse
+keys.find_incremental['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
+keys.find_incremental['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
 keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
 keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
