@@ -186,6 +186,7 @@ test_normal('left', test_text0(), 4, to_chars('hx'), 'Potnt potables.\n')
 test_normal('paste_lastline', test_text2(), 129, to_chars('ddp'), 'We hold these truths to be self-evident, \nthat all men are created equal, that they \nare endowed by their Creator with certain \nLiberty and the pursuit of Happiness.\nunalienable Rights, that among these are Life \n')
 test_normal('inner_word', test_text0(), 7, to_chars('diw'), 'Potent .\n')
 test_normal('inner_word2', test_text0(), 8, to_chars('diw'), 'Potent .\n')
+test_normal('a_word', test_text1(), 5, to_chars('daw'), 'The principle is that you must not fool \nyourself and you are the easiest person to fool.\n')
 test_normal('paste_here_blank_line', test_text2(), 42, to_chars('d$kywjp'), 'We hold these truths to be self-evident, \nWe \nare endowed by their Creator with certain \nunalienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
 
 test_visual = make_test_table()

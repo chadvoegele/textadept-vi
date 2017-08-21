@@ -354,7 +354,7 @@ end
 
 tavi.pos.outside_word = function (pos)
   local pos = pos or tavi.pos.current()
-  return tavi.pos.word_end(pos, true), tavi.pos.word_start(pos, true) - 1
+  return tavi.pos.word_end(pos, true), tavi.pos.word_start(pos, true)
 end
 
 -- Thi_s can be
