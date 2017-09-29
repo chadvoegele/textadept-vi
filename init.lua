@@ -6,8 +6,16 @@ buffer.caret_period = 0
 buffer.caret_sticky = buffer.CARETSTICKY_ON  -- non-configurable by tavi.state.line_offset below
 
 -- Constants
-tavi.PASTE_LINE = 'visual_line'
-tavi.PASTE_HERE = 'here'
+tavi.PASTE_LINE = 'paste_line'
+tavi.PASTE_HERE = 'paste_here'
+
+tavi.MODE = {}
+tavi.MODE.NORMAL = 'normal'
+tavi.MODE.INSERT = 'insert'
+tavi.MODE.VISUAL = 'visual'
+tavi.MODE.VISUAL_LINE = 'visual_line'
+tavi.MODE.VISUAL_BLOCK = 'visual_block'
+tavi.MODE.PASTE = 'paste'
 
 -- State
 tavi.state = {
@@ -116,7 +124,7 @@ end
 tavi.pre_adjust_selection = function ()
   local pos = tavi.pos.current()
   local anchor = tavi.pos.anchor()
-  if keys.MODE == 'visual_block' then
+  if keys.MODE == tavi.MODE.VISUAL_BLOCK then
     local pos_offset = pos - tavi.pos.start_line(pos)
     local anchor_offset = anchor - tavi.pos.start_line(anchor)
     if pos_offset >= anchor_offset then
@@ -140,18 +148,18 @@ tavi.enter_mode = function (mode)
     return
   end
 
-  if mode == 'normal' then
+  if mode == tavi.MODE.NORMAL then
     tavi.clear_selection()
     buffer:cancel()
-  elseif mode == 'paste' then
+  elseif mode == tavi.MODE.PASTE then
     tavi.clear_selection()
     buffer:cancel()
     events.connect(events.KEYPRESS, paste_mode_keypress, 2)
-  elseif mode == 'visual' then
+  elseif mode == tavi.MODE.VISUAL then
     tavi.select(buffer.selection_end, buffer.selection_start)
-  elseif mode == 'visual_line' then
+  elseif mode == tavi.MODE.VISUAL_LINE then
     tavi.select_line()
-  elseif mode == 'visual_block' then
+  elseif mode == tavi.MODE.VISUAL_BLOCK then
     local pos = tavi.pos.current() -- must go before buffer.selection_mode
     buffer.selection_mode = buffer.SEL_RECTANGLE
     buffer.virtual_space_options = buffer.VS_RECTANGULARSELECTION
@@ -165,16 +173,16 @@ tavi.enter_mode = function (mode)
 end
 
 tavi.key_mode_text = {
-  ['insert'] = '-- INSERT --',
-  ['paste'] = '-- INSERT (paste) --',
-  ['visual_block'] = '-- VISUAL BLOCK --',
-  ['visual_line'] = '-- VISUAL LINE --',
-  ['visual'] = '-- VISUAL --',
-  ['normal'] = '',
+  [tavi.MODE.INSERT] = '-- INSERT --',
+  [tavi.MODE.PASTE] = '-- INSERT (paste) --',
+  [tavi.MODE.VISUAL_BLOCK] = '-- VISUAL BLOCK --',
+  [tavi.MODE.VISUAL_LINE] = '-- VISUAL LINE --',
+  [tavi.MODE.VISUAL] = '-- VISUAL --',
+  [tavi.MODE.NORMAL] = '',
 }
 
 events.connect(events.UPDATE_UI, function()
-  ui.statusbar_text = tavi.key_mode_text[keys.MODE] or tavi.key_mode_text['insert']
+  ui.statusbar_text = tavi.key_mode_text[keys.MODE] or tavi.key_mode_text[tavi.MODE.INSERT]
 end)
 
 local set_normal_mode_events = {
@@ -185,7 +193,7 @@ local set_normal_mode_events = {
 }
 for _, event in ipairs(set_normal_mode_events) do
   events.connect(event, function ()
-    tavi.enter_mode('normal')
+    tavi.enter_mode(tavi.MODE.NORMAL)
   end)
 end
 
@@ -201,9 +209,9 @@ function paste_mode_keypress(code, shift, control, alt, meta, caps_lock)
 end
 
 tavi.exit_mode = function (mode)
-  if mode == 'paste' then
+  if mode == tavi.MODE.PASTE then
     events.disconnect(events.KEYPRESS, paste_mode_keypress)
-    tavi.enter_mode('normal')
+    tavi.enter_mode(tavi.MODE.NORMAL)
     return true
   end
 end
@@ -279,10 +287,10 @@ tavi.pos.line = function (l)
   return buffer:position_from_line(l)
 end
 tavi.pos.current = function ()
-  return keys.MODE == 'visual_block' and buffer.rectangular_selection_caret or buffer.current_pos
+  return keys.MODE == tavi.MODE.VISUAL_BLOCK and buffer.rectangular_selection_caret or buffer.current_pos
 end
 tavi.pos.anchor = function ()
-  return keys.MODE == 'visual_block' and buffer.rectangular_selection_anchor or buffer.anchor
+  return keys.MODE == tavi.MODE.VISUAL_BLOCK and buffer.rectangular_selection_anchor or buffer.anchor
 end
 tavi.pos.character_right =  function (c) return tavi.pos.current()+(c or 1) end
 tavi.pos.character_left =  function (c) return tavi.pos.current()-(c or 1) end
@@ -631,9 +639,9 @@ keys.normal['cr'] = buffer.redo
 
   -- Mode Switching
 keys.normal[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
-keys.normal['cv'] = function () tavi.enter_mode('visual_block') end
-keys.normal['v'] = function () tavi.enter_mode('visual') end
-keys.normal['V'] = function () tavi.enter_mode('visual_line') end
+keys.normal['cv'] = function () tavi.enter_mode(tavi.MODE.VISUAL_BLOCK) end
+keys.normal['v'] = function () tavi.enter_mode(tavi.MODE.VISUAL) end
+keys.normal['V'] = function () tavi.enter_mode(tavi.MODE.VISUAL_LINE) end
 keys.normal['i'] = function () tavi.enter_mode(nil) end
 keys.normal['I'] = function()
   buffer.home()
@@ -706,8 +714,8 @@ keys.find_incremental_reverse['\b'] = function()
   tavi.find_incremental_reverse(ui.command_entry:text_range(0, e), false)
   return false -- propagate
 end
-keys.find_incremental_reverse['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
-keys.find_incremental_reverse['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
+keys.find_incremental_reverse['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.find_incremental_reverse['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode(tavi.MODE.NORMAL) end
 setmetatable(keys.find_incremental_reverse, {__index = function(_, k)
                if #k > 1 and k:find('^[cams]*.+$') then return end
                tavi.find_incremental_reverse(ui.command_entry:get_text()..k, false)
@@ -718,23 +726,23 @@ keys.normal['?'] = function ()
   ui.command_entry.enter_mode('find_incremental_reverse')
 end
 keys.normal['/'] = ui.find.find_incremental
-keys.find_incremental['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
-keys.find_incremental['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode('normal') end
+keys.find_incremental['esc'] = function () ui.command_entry.enter_mode() tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.find_incremental['c['] = function () ui.command_entry.enter_mode() tavi.enter_mode(tavi.MODE.NORMAL) end
 keys.normal['n'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, true) end end
 keys.normal['N'] = function () if ui.find.find_entry_text then events.emit(events.FIND, ui.find.find_entry_text, false) end end
 
 -- Visual Block
 keys.visual_block = make_canonical_movements(tavi.select_block)
-keys.visual_block['esc'] = function () tavi.enter_mode('normal') end
-keys.visual_block['c['] = function () tavi.enter_mode('normal') end
+keys.visual_block['esc'] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.visual_block['c['] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
 keys.visual_block['x'] = function ()
   tavi.adjust_act(function() buffer:cut() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual_block['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
   tavi.adjust_act(function () buffer:copy() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual_block['I'] = function ()
   local pos = tavi.pos.current()
@@ -752,14 +760,14 @@ keys.visual_block['c'] = function ()
   tavi.enter_mode(nil)
 end
 keys.visual_block['C'] = keys.visual_block['c']
-keys.visual_block['v'] = function () tavi.enter_mode('visual') end
-keys.visual_block['V'] = function () tavi.enter_mode('visual_line') end
+keys.visual_block['v'] = function () tavi.enter_mode(tavi.MODE.VISUAL) end
+keys.visual_block['V'] = function () tavi.enter_mode(tavi.MODE.VISUAL_LINE) end
 keys.visual_block[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
 keys.visual_block['r'] = make_char_functor_table(function (c)
   return function ()
     local pos = buffer.rectangular_selection_anchor
     tavi.adjust_act(function () tavi.replace_selection(c) end)
-    tavi.enter_mode('normal')
+    tavi.enter_mode(tavi.MODE.NORMAL)
     tavi.moveto(pos)
   end
 end)
@@ -769,31 +777,31 @@ keys.visual = make_canonical_movements(tavi.select)
 keys.visual[':'] = function () ui.command_entry.enter_mode('lua_command', 'lua') end
 keys.visual['<'] = buffer.back_tab
 keys.visual['>'] = buffer.tab
-keys.visual['esc'] = function () tavi.enter_mode('normal') end
-keys.visual['c['] = function () tavi.enter_mode('normal') end
-keys.visual['cv'] = function () tavi.enter_mode('visual_block') end
-keys.visual['V'] = function () tavi.enter_mode('visual_line') end
+keys.visual['esc'] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.visual['c['] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.visual['cv'] = function () tavi.enter_mode(tavi.MODE.VISUAL_BLOCK) end
+keys.visual['V'] = function () tavi.enter_mode(tavi.MODE.VISUAL_LINE) end
 keys.visual['~'] = function ()
   tavi.adjust_act(tavi.change_character_case)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual['x'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
   tavi.adjust_act(function() buffer:cut() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual['d'] = keys.visual['x']
 keys.visual['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
   tavi.adjust_act(function () buffer:copy() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_HERE
   tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
-keys.visual['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode('normal') end end)
+keys.visual['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode(tavi.MODE.NORMAL) end end)
 
 -- Visual Line
 keys.visual_line = make_canonical_movements(tavi.select_line)
@@ -802,29 +810,29 @@ keys.visual_line['<'] = buffer.back_tab
 keys.visual_line['>'] = buffer.tab
 keys.visual_line['~'] = function ()
   tavi.adjust_act(tavi.change_character_case)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
-keys.visual_line['esc'] = function () tavi.enter_mode('normal') end
-keys.visual_line['c['] = function () tavi.enter_mode('normal') end
-keys.visual_line['cv'] = function () tavi.enter_mode('visual_block') end
-keys.visual_line['v'] = function () tavi.enter_mode('visual') end
+keys.visual_line['esc'] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.visual_line['c['] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys.visual_line['cv'] = function () tavi.enter_mode(tavi.MODE.VISUAL_BLOCK) end
+keys.visual_line['v'] = function () tavi.enter_mode(tavi.MODE.VISUAL) end
 keys.visual_line['x'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
   tavi.adjust_act(function() buffer:cut() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual_line['d'] = keys.visual_line['x']
 keys.visual_line['y'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
   tavi.adjust_act(function () buffer:copy() end)
-  tavi.enter_mode('normal')
+  tavi.enter_mode(tavi.MODE.NORMAL)
 end
 keys.visual_line['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
   tavi.adjust_act(function() buffer:cut() end)
   tavi.enter_mode(nil)
 end
-keys.visual_line['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode('normal') end end)
+keys.visual_line['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode(tavi.MODE.NORMAL) end end)
 
 -- Prevent Fallthrough to Insert Mode
 local prevent_fallthrough = function (t)
@@ -836,16 +844,16 @@ local prevent_fallthrough = function (t)
     end,
   })
 end
-local modes = { 'normal', 'visual', 'visual_line', 'visual_block' }
+local modes = { tavi.MODE.NORMAL, tavi.MODE.VISUAL, tavi.MODE.VISUAL_LINE, tavi.MODE.VISUAL_BLOCK }
 for k, m in ipairs(modes) do prevent_fallthrough(keys[m]) end
 
 -- Insert Mode
-keys['esc'] = function () tavi.enter_mode('normal') end
-keys['c['] = function () tavi.enter_mode('normal') end
+keys['esc'] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
+keys['c['] = function () tavi.enter_mode(tavi.MODE.NORMAL) end
 
 -- Paste Mode
 keys.paste = {}
-keys.paste['c['] = function () tavi.exit_mode('paste') end
-keys.paste['esc'] = function () tavi.exit_mode('paste') end
+keys.paste['c['] = function () tavi.exit_mode(tavi.MODE.PASTE) end
+keys.paste['esc'] = function () tavi.exit_mode(tavi.MODE.PASTE) end
 
 return tavi
