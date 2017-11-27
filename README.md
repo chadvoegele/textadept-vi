@@ -7,14 +7,6 @@ git clone https://github.com/chadvoegele/textadept-vi.git ~/.textadept/modules/t
 echo "tavi = require('textadept-vi')" >> ~/.textadept/init.lua
 ```
 
-In `$TEXTADEPT_HOME/src/scintilla`, apply the patch, `scintilla_block_cursor_selection.patch`, and rebuild.
-```bash
-cd $TEXTADEPT_HOME/src/scintilla
-patch -p1 < scintilla_block_cursor_selection.patch
-cd $TEXTADEPT_HOME/src
-make
-```
-
 # Status
 ## Working
 * Motions: h, j, k, l, G, gg, f, F, t, T, $, 0, ^, w, b, i{char}, iw, a{char}, aw
@@ -35,7 +27,7 @@ make
 # Tests
 Install `luaunit` and run the tests.
 ```bash
-textadept -e "require('textadept-vi.test').run()"
+TA_LUA_PATH=${PREFIX}/luaunit/?.lua ./test.sh
 ```
 
 # Contributions

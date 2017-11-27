@@ -583,7 +583,11 @@ end
 keys.normal = make_canonical_movements(tavi.move)
 keys.normal['~'] = function () tavi.sel(tavi.pos.current()+1) tavi.change_character_case() end
 keys.normal['r'] = make_char_functor_table(function (c) return function () tavi.replace_character(c) end end)
-keys.normal['%'] = textadept.editing.match_brace
+keys.normal['%'] = function ()
+  local pos = tavi.pos.current()
+  local match_pos = buffer:brace_match(pos, 0)
+  if match_pos >= 0 then buffer:goto_pos(match_pos) end
+end
 
 -- Cut, Copy, Paste
 keys.normal['x'] = function () tavi.state.paste_mode = tavi.PASTE_HERE tavi.cut.current() end
