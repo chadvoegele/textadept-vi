@@ -180,6 +180,13 @@ local test_text2 = function ()
   return text
 end
 
+local test_text3 = function ()
+  local text =
+'Unicode works ☺ too!\n'..
+'Though it ☹ is a pain!\n'
+  return text
+end
+
 test_normal = make_test_table()
 test_normal('right', test_text0(), 4, to_chars('lx'), 'Poten potables.\n')
 test_normal('left', test_text0(), 4, to_chars('hx'), 'Potnt potables.\n')
@@ -189,6 +196,11 @@ test_normal('inner_word2', test_text0(), 8, to_chars('diw'), 'Potent .\n')
 test_normal('a_word', test_text1(), 5, to_chars('daw'), 'The principle is that you must not fool \nyourself and you are the easiest person to fool.\n')
 test_normal('3word', test_text1(), 4, to_chars('d3w'), 'The is that you must not fool \nyourself and you are the easiest person to fool.\n')
 test_normal('paste_here_blank_line', test_text2(), 42, to_chars('d$kywjp'), 'We hold these truths to be self-evident, \nWe \nare endowed by their Creator with certain \nunalienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
+test_normal('unicode_right', test_text3(), 14, to_chars('lx'), 'Unicode works ☺too!\nThough it ☹ is a pain!\n')
+test_normal('unicode_right2', test_text3(), 13, to_chars('lx'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
+test_normal('unicode_find', test_text3(), 12, to_chars('ftx'), 'Unicode works ☺ oo!\nThough it ☹ is a pain!\n')
+test_normal('unicode_backwards_find', test_text3(), 20, to_chars('Fsx'), 'Unicode work ☺ too!\nThough it ☹ is a pain!\n')
+test_normal('unicode_replace', test_text3(), 14, to_chars('ra'), 'Unicode works a too!\nThough it ☹ is a pain!\n')
 
 test_visual = make_test_table()
 test_visual('cut', test_text0(), 4, to_chars('vx'), 'Potet potables.\n')
@@ -198,6 +210,7 @@ test_visual('5left', test_text0(), 4, to_chars('v5lx'), 'Poteables.\n')
 test_visual('find_right', test_text0(), 1, to_chars('vfax'), 'Pbles.\n')
 test_visual('right_find_right', test_text0(), 1, to_chars('vlfax'), 'Pbles.\n')
 test_visual('right_find_left', test_text0(), 8, to_chars('vlFnx'), 'Potetables.\n')
+test_visual('unicode_cut', test_text3(), 14, to_chars('vx'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
 
 test_visual_line = make_test_table()
 test_visual_line('down', test_text2(), 43, to_chars('Vjx'), 'We hold these truths to be self-evident, \nunalienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
@@ -208,5 +221,6 @@ test_visual_line('2up', test_text2(), 129, to_chars('V2kx'), 'We hold these trut
 test_visual_block = make_test_table()
 test_visual_block('cutrightdown', test_text2(), 0, flatten('cv', to_chars('llljjjx')), 'old these truths to be self-evident, \n all men are created equal, that they \nendowed by their Creator with certain \nienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
 test_visual_block('cutupleft', test_text2(), 152, flatten('cv', to_chars('hhhkkkx')), 'We hold these truths e self-evident, \nthat all men are creaequal, that they \nare endowed by their tor with certain \nunalienable Rights, tamong these are Life \nLiberty and the pursuit of Happiness.\n')
+test_visual_block('unicode_cut', test_text3(), 14, flatten('cv', to_chars('lx')), 'Unicode works too!\nThough it ☹ is a pain!\n')
 
 return testtavi

@@ -29,8 +29,36 @@ local function apply(n, x0, fn)
   return apply(n-1, fn(x0), fn)
 end
 
+local function get_shifted_pos(pos, shift)
+  local pos = pos or tavi.pos.current()
+  local shift = shift or 0
+  if shift == 0 then
+    return pos
+  elseif shift > 0 then
+    return get_shifted_pos(buffer:position_after(pos), shift - 1)
+  else
+    return get_shifted_pos(buffer:position_before(pos), shift + 1)
+  end
+end
+
+-- get_shifted_pos(pos, calculate_pos_shift(epos, pos)) == epos
+local function calculate_pos_shift(epos, pos, shift)
+  local epos = epos or tavi.pos.current()
+  local pos = pos or tavi.pos.current()
+  local shift = shift or 0
+  if epos == pos then
+    return shift
+  elseif epos > pos then
+    return calculate_pos_shift(epos, buffer:position_after(pos), shift+1)
+  else
+    return calculate_pos_shift(epos, buffer:position_before(pos), shift-1)
+  end
+end
+
 tavi.char_at = function (pos)
-  return string.char(buffer.char_at[pos])
+  buffer.target_start = pos
+  buffer.target_end = buffer:position_after(pos)
+  return buffer.target_text
 end
 
 tavi.sel = function (endp, startp)
@@ -44,7 +72,7 @@ end
 tavi.get_line_offset = function (pos)
   local pos = pos or tavi.pos.current()
   local start_line = tavi.pos.start_line(pos)
-  local offset = pos - start_line
+  local offset = calculate_pos_shift(pos, start_line)
   return offset
 end
 
@@ -55,7 +83,7 @@ end
 
 tavi.moveto = function (pos, offset)
   if pos then
-    buffer:goto_pos(pos + (offset or 0))
+    buffer:goto_pos(get_shifted_pos(pos, offset or 0))
     return true
   end
 end
@@ -71,7 +99,7 @@ tavi.change_character_case = function()
 end
 
 tavi.replace_character = function (replace_char)
-  tavi.sel(tavi.pos.current(), tavi.pos.current()+1)
+  tavi.sel(tavi.pos.current(), get_shifted_pos(tavi.pos.current(), 1))
   buffer:replace_sel(replace_char)
 end
 
@@ -84,7 +112,7 @@ tavi.pos_from_line_change = function (line_change, pos, line_offset)
   n_line = n_line > buffer.line_count and buffer.line_count or n_line
   local n_start_line = tavi.pos.line(n_line)
   local n_end_line = tavi.pos.end_line(n_start_line)
-  local n_pos = n_start_line + line_offset
+  local n_pos = get_shifted_pos(n_start_line, line_offset)
   n_pos = n_pos < n_start_line and n_start_line or n_pos
   n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
   return n_pos
@@ -128,11 +156,11 @@ tavi.pre_adjust_selection = function ()
     local pos_offset = pos - tavi.pos.start_line(pos)
     local anchor_offset = anchor - tavi.pos.start_line(anchor)
     if pos_offset >= anchor_offset then
-      tavi.select_block(pos+1, anchor)
+      tavi.select_block(get_shifted_pos(pos, 1), anchor)
     end
   else
     if pos >= anchor then
-      tavi.select(pos+1, anchor)
+      tavi.select(get_shifted_pos(pos, 1), anchor)
     end
   end
 end
@@ -203,7 +231,7 @@ function paste_mode_keypress(code, shift, control, alt, meta, caps_lock)
     return true
   end
 
-  buffer:insert_text(-1, string.char(code));
+  buffer:insert_text(-1, utf8.char(code));
   tavi.move.character_right()
   return true
 end
@@ -221,7 +249,6 @@ tavi.pos = {}
 
 local find_character = function (direction, char, pos)
   local pos = pos or tavi.pos.current()
-  pos = pos + direction    -- This i_s a sham. find('s') == tavi.pos.current() w/o +1
 
   local end_pos
   if direction == 1 then
@@ -232,7 +259,9 @@ local find_character = function (direction, char, pos)
     return nil
   end
 
-  for p=pos,end_pos,direction do
+  local p = pos
+  while p ~= end_pos do
+    p = get_shifted_pos(p, direction)
     if tavi.char_at(p) == char then
       return p
     end
@@ -292,8 +321,8 @@ end
 tavi.pos.anchor = function ()
   return keys.MODE == tavi.MODE.VISUAL_BLOCK and buffer.rectangular_selection_anchor or buffer.anchor
 end
-tavi.pos.character_right =  function (c) return tavi.pos.current()+(c or 1) end
-tavi.pos.character_left =  function (c) return tavi.pos.current()-(c or 1) end
+tavi.pos.character_right =  function (c) return get_shifted_pos(tavi.pos.current(), c or 1) end
+tavi.pos.character_left =  function (c) return get_shifted_pos(tavi.pos.current(), -(c or 1)) end
 tavi.pos.line_up = function (c) return tavi.pos_from_line_change(-(c or 1)) end
 tavi.pos.line_down = function (c) return tavi.pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
@@ -307,7 +336,8 @@ tavi.pos.end_line = function (pos, offset)
   local pos = pos or tavi.pos.current()
   local offset = offset or -1
   local line = buffer:line_from_position(pos)
-  local eol = buffer:line_length(line) + buffer:position_from_line(line) + offset
+  local eol = buffer:line_length(line) + buffer:position_from_line(line)
+  eol = get_shifted_pos(eol, offset)
   local sol = tavi.pos.start_line(pos)
   return eol >= sol and eol or sol   -- ensure same line
 end
@@ -442,12 +472,12 @@ local select_action = function (endp, startp)
   -- Emulate vim/zsh/tmux block caret selection behavior
   -- make a pre-adjustment so we can ignore it in the conditions below
   if pos == startp and pos == endp then
-    startp = startp + 1
+    startp = get_shifted_pos(startp, 1)
   end
   if pos < startp and endp >= startp then
-    startp = startp - 1
+    startp = get_shifted_pos(startp, -1)
   elseif pos > startp and endp <= startp then
-    startp = startp + 1
+    startp = get_shifted_pos(startp, 1)
   end
   tavi.sel(endp, startp)
 end
@@ -457,17 +487,17 @@ local select_block_action = function (endp, startp)
   local pos = tavi.pos.current()
   local endp = endp or pos
   local startp = startp or tavi.pos.anchor()
-  local pos_offset = pos - tavi.pos.start_line(pos)
-  local startp_offset = startp - tavi.pos.start_line(startp)
-  local endp_offset = endp - tavi.pos.start_line(endp)
+  local pos_offset = calculate_pos_shift(pos, tavi.pos.start_line(pos))
+  local startp_offset = calculate_pos_shift(startp, tavi.pos.start_line(startp))
+  local endp_offset = calculate_pos_shift(endp, tavi.pos.start_line(endp))
   if pos_offset == startp_offset and pos_offset == endp_offset and pos < tavi.pos.end_line(pos) then
-    startp = startp + 1
-    startp_offset = startp_offset + 1
+    startp = get_shifted_pos(startp, 1)
+    startp_offset = get_shifted_pos(startp_offset, 1)
   end
   if pos_offset < startp_offset and endp_offset >= startp_offset then
-    startp = startp - 1
+    startp = get_shifted_pos(startp, -1)
   elseif pos_offset > startp_offset and endp_offset <= startp_offset then
-    startp = startp + 1
+    startp = get_shifted_pos(startp, 1)
   end
   buffer.rectangular_selection_caret = endp
   buffer.rectangular_selection_anchor = startp
@@ -589,7 +619,7 @@ end
 
 -- Normal
 keys.normal = make_canonical_movements(tavi.move)
-keys.normal['~'] = function () tavi.sel(tavi.pos.current()+1) tavi.change_character_case() end
+keys.normal['~'] = function () tavi.sel(get_shifted_pos(tavi.pos.current(), 1)) tavi.change_character_case() end
 keys.normal['r'] = make_char_functor_table(function (c) return function () tavi.replace_character(c) end end)
 keys.normal['%'] = function ()
   local pos = tavi.pos.current()
@@ -618,7 +648,7 @@ keys.normal['p'] = function ()
     buffer:paste()
   else
     local eol = tavi.pos.end_line(nil, -1)
-    local paste_at = tavi.pos.current() + 1
+    local paste_at = get_shifted_pos(tavi.pos.current(), 1)
     paste_at = paste_at > eol and eol or paste_at
     tavi.moveto(paste_at)
     buffer.paste()
@@ -746,10 +776,10 @@ keys.visual_block['y'] = function ()
 end
 keys.visual_block['I'] = function ()
   local pos = tavi.pos.current()
-  local pos_offset = pos - tavi.pos.start_line(pos)
+  local pos_offset = calculate_pos_shift(pos, tavi.pos.start_line(pos))
   local anchor = tavi.pos.anchor()
   local anchor_eol = tavi.pos.end_line(anchor, -1)
-  local anchor_off = tavi.pos.start_line(anchor) + pos_offset
+  local anchor_off = get_shifted_pos(tavi.pos.start_line(anchor), pos_offset)
   anchor_off = anchor_off > anchor_eol and anchor_eol or anchor_off
   buffer.rectangular_selection_caret = pos
   buffer.rectangular_selection_anchor = anchor_off
