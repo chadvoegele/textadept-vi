@@ -865,6 +865,7 @@ end
 keys.visual_line['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode(tavi.MODE.NORMAL) end end)
 
 -- Prevent Fallthrough to Insert Mode
+-- TODO: Without this, pressing 'z' in 'normal' mode, inserts 'z' into the buffer. This is because the key press falls through to Scintilla. The fall through does not happen in the case of a keychain, e.g. keys[tavi.MODE.NORMAL]['d']['d']. The code is at 'if status == INVALID and keychain_size > 0 then' in 'core/keys.lua'. The 'keychain_size > 0' does not make sense in this context, but perhaps does elsewhere.
 local prevent_fallthrough = function (t)
   local mt = getmetatable(t) or {}
   local mt_index = mt.__index or function () end
