@@ -414,7 +414,7 @@ local make_to_character = function (direction, offset)
     local n = n or 1
     local pos = pos or tavi.pos.current()
     if n == 0 then
-      return pos and offset + pos
+      return pos and get_shifted_pos(pos, offset)
     else
       local nextpos = find_character(direction, char, pos)
       return nextpos and to_char_fn(char, n-1, nextpos)

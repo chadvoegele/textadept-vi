@@ -199,6 +199,7 @@ test_normal('paste_here_blank_line', test_text2(), 42, to_chars('d$kywjp'), 'We 
 test_normal('unicode_right', test_text3(), 14, to_chars('lx'), 'Unicode works ☺too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_right2', test_text3(), 13, to_chars('lx'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_find', test_text3(), 12, to_chars('ftx'), 'Unicode works ☺ oo!\nThough it ☹ is a pain!\n')
+test_normal('unicode_find2', test_text3(), 15, to_chars('t x'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_backwards_find', test_text3(), 20, to_chars('Fsx'), 'Unicode work ☺ too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_replace', test_text3(), 14, to_chars('ra'), 'Unicode works a too!\nThough it ☹ is a pain!\n')
 
