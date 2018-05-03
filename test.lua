@@ -128,8 +128,8 @@ function CaptureTextOutput:endSuite()
   end
 end
 
-testtavi.run = function ()
-  testtavi.filename = testtavi.filename or os.tmpname()
+testtavi.run = function (filename)
+  testtavi.filename = filename or os.tmpname()
   io.open_file(testtavi.filename)
   local runner = luaunit.LuaUnit.new()
   runner.outputType = CaptureTextOutput
