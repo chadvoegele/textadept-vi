@@ -370,7 +370,7 @@ end
 
 tavi.pos.inside_brace_capture = function (brace_char, pos)
   local close_brace_pos, open_brace_pos = find_brace_capture(brace_char, pos)
-  return close_brace_pos and close_brace_pos - 1, open_brace_pos and open_brace_pos + 1
+  return close_brace_pos and get_shifted_pos(close_brace_pos, -1), open_brace_pos and get_shifted_pos(open_brace_pos, 1)
 end
 
 tavi.pos.outside_brace_capture = function (brace_char, pos)
@@ -382,7 +382,7 @@ tavi.pos.inside_character = function (char, pos)
   local pos = pos or tavi.pos.current()
   local begin_pos = find_character(-1, char, pos)
   local end_pos = find_character(1, char, pos)
-  return end_pos and end_pos - 1, begin_pos and begin_pos + 1
+  return end_pos and get_shifted_pos(end_pos, -1), begin_pos and get_shifted_pos(begin_pos, 1)
 end
 
 tavi.pos.outside_character = function (char, pos)

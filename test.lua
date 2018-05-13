@@ -212,6 +212,7 @@ test_visual('find_right', test_text0(), 1, to_chars('vfax'), 'Pbles.\n')
 test_visual('right_find_right', test_text0(), 1, to_chars('vlfax'), 'Pbles.\n')
 test_visual('right_find_left', test_text0(), 8, to_chars('vlFnx'), 'Potetables.\n')
 test_visual('unicode_cut', test_text3(), 14, to_chars('vx'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
+test_visual('unicode_inside_paren', 'a(b☺)c', 4, to_chars('vi)x'), 'a()c')
 
 test_visual_line = make_test_table()
 test_visual_line('down', test_text2(), 43, to_chars('Vjx'), 'We hold these truths to be self-evident, \nunalienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
