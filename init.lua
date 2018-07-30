@@ -3,7 +3,7 @@ local tavi = {}
 -- Init
 buffer.caret_style = buffer.CARETSTYLE_BLOCK
 buffer.caret_period = 0
-buffer.caret_sticky = buffer.CARETSTICKY_ON  -- non-configurable by tavi.state.line_offset below
+buffer.caret_sticky = buffer.CARETSTICKY_ON  -- non-configurable by tavi.state.caret_x below
 
 -- Constants
 tavi.PASTE_LINE = 'paste_line'
@@ -20,7 +20,7 @@ tavi.MODE.PASTE = 'paste'
 -- State
 tavi.state = {
   paste_mode = tavi.PASTE_HERE,
-  line_offset = 0,
+  caret_x = 0,
 }
 
 -- Operations
@@ -69,16 +69,28 @@ tavi.sel = function (endp, startp)
   end
 end
 
-tavi.get_line_offset = function (pos)
-  local pos = pos or tavi.pos.current()
-  local start_line = tavi.pos.start_line(pos)
-  local offset = calculate_pos_shift(pos, start_line)
-  return offset
+local function get_widths(epos, spos, widths)
+  widths = widths or { 0 }
+  spos, epos = spos <= epos and spos or epos, spos <= epos and epos or spos
+  if epos == spos then
+    return widths
+  end
+  local char_width = tavi.char_at(spos) == '\t' and buffer.tab_width or 1
+  widths[#widths+1] = widths[#widths]+char_width
+  return get_widths(epos, buffer:position_after(spos), widths)
 end
 
-tavi.set_line_offset = function ()
+tavi.get_caret_x = function (pos)
+  local pos = pos or tavi.pos.current()
+  local start_line = tavi.pos.start_line(pos)
+  local widths = get_widths(start_line, pos)
+  local width = widths[#widths]
+  return width
+end
+
+tavi.set_caret_x = function ()
   buffer:choose_caret_x()  -- important for rectangular selections
-  tavi.state.line_offset = tavi.get_line_offset()
+  tavi.state.caret_x = tavi.get_caret_x()
 end
 
 tavi.moveto = function (pos, offset)
@@ -103,18 +115,41 @@ tavi.replace_character = function (replace_char)
   buffer:replace_sel(replace_char)
 end
 
-tavi.pos_from_line_change = function (line_change, pos, line_offset)
-  local line_offset = line_offset or tavi.state.line_offset
-  local pos = pos or tavi.pos.current()
-  local line = buffer:line_from_position(pos)
+local function line_from_line_change(line_change, line)
   local n_line = line + line_change
   n_line = n_line < 0 and 0 or n_line
   n_line = n_line > buffer.line_count and buffer.line_count or n_line
+  return n_line
+end
+
+local function binary_search(haystack, needle, s, e)
+  s = s or 1
+  e = e or #haystack
+
+  if s > e then
+    return s
+  end
+
+  local m = math.floor((s+e)/2)
+  if needle == haystack[m] then
+    return m
+  elseif needle > haystack[m] then
+    return binary_search(haystack, needle, m+1, e)
+  else
+    return binary_search(haystack, needle, s, m-1)
+  end
+end
+
+tavi.pos_from_line_change = function (line_change, pos)
+  local pos = pos or tavi.pos.current()
+  local line = buffer:line_from_position(pos)
+  local n_line = line_from_line_change(line_change, line)
   local n_start_line = tavi.pos.line(n_line)
   local n_end_line = tavi.pos.end_line(n_start_line)
-  local n_pos = get_shifted_pos(n_start_line, line_offset)
+  local n_widths = get_widths(n_start_line, n_end_line)
+  local n_pos = binary_search(n_widths, tavi.state.caret_x)-1+n_start_line
   n_pos = n_pos < n_start_line and n_start_line or n_pos
-  n_pos = n_pos > n_end_line and n_end_line or n_pos  -- start of next line
+  n_pos = n_pos > n_end_line and n_end_line or n_pos
   return n_pos
 end
 
@@ -122,8 +157,8 @@ tavi.replace_selection = function (replace_char)
   if buffer.selection_is_rectangle then
     local startp = tavi.pos.current() < tavi.pos.anchor() and tavi.pos.current() or tavi.pos.anchor()
     local endp = tavi.pos.current() < tavi.pos.anchor() and tavi.pos.anchor() or tavi.pos.current()
-    local start_offset = tavi.get_line_offset(startp)
-    local end_offset = tavi.get_line_offset(endp)
+    local start_offset = tavi.get_caret_x(startp)
+    local end_offset = tavi.get_caret_x(endp)
     local l = 0
     local sp = tavi.pos_from_line_change(l, startp, start_offset)
     local ep = tavi.pos_from_line_change(l, startp, end_offset)
@@ -583,37 +618,37 @@ end
 local make_canonical_movements = function (act)
   local movements = make_number_functor_table({
     ['g'] = {
-      ['g'] = function (l) return function () act.line(l-1) tavi.set_line_offset() end end
+      ['g'] = function (l) return function () act.line(l-1) tavi.set_caret_x() end end
     },
-    ['h'] = function (n) return function () act.character_left(n) tavi.set_line_offset() end end,
-    ['left'] = function (n) return function () act.character_left(n) tavi.set_line_offset() end end,
+    ['h'] = function (n) return function () act.character_left(n) tavi.set_caret_x() end end,
+    ['left'] = function (n) return function () act.character_left(n) tavi.set_caret_x() end end,
     ['j'] = function (n) return function () act.line_down(n) end end,
     ['down'] = function (n) return function () act.line_down(n) end end,
     ['k'] = function (n) return function () act.line_up(n) end end,
     ['up'] = function (n) return function () act.line_up(n) end end,
-    ['l'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
-    ['right'] = function (n) return function () act.character_right(n) tavi.set_line_offset() end end,
+    ['l'] = function (n) return function () act.character_right(n) tavi.set_caret_x() end end,
+    ['right'] = function (n) return function () act.character_right(n) tavi.set_caret_x() end end,
     ['pgup'] = function (n) return function () act.page_up(n) end end,
     ['pgdn'] = function (n) return function () act.page_down(n) end end,
-    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_line_offset() end end end),
-    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_line_offset() end end end),
-    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_line_offset() end end end),
-    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_line_offset() end end end),
-    ['w'] = function (n) return function () act.word_end(n) tavi.set_line_offset() end end,
-    ['b'] = function (n) return function () act.word_start(n) tavi.set_line_offset() end end
+    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_caret_x() end end end),
+    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_caret_x() end end end),
+    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_caret_x() end end end),
+    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_caret_x() end end end),
+    ['w'] = function (n) return function () act.word_end(n) tavi.set_caret_x() end end,
+    ['b'] = function (n) return function () act.word_start(n) tavi.set_caret_x() end end
   })
-  movements['$'] = function () act.end_line(nil, -2) tavi.set_line_offset() end
-  movements['^'] = function () act.soft_start_line() tavi.set_line_offset() end
-  movements['0'] = function () act.start_line() tavi.set_line_offset() end
-  movements['G'] = function () act.document_end() tavi.set_line_offset() end
-  movements['i'] = make_char_functor_table(function (c) return function () act.inside_brace_capture(c) tavi.set_line_offset() end end)
-  movements['i']["'"] = function () act.inside_character("'") tavi.set_line_offset() end
-  movements['i']['"'] = function () act.inside_character('"') tavi.set_line_offset() end
-  movements['a'] = make_char_functor_table(function (c) return function () act.outside_brace_capture(c) tavi.set_line_offset() end end)
-  movements['a']["'"] = function () act.outside_character("'") tavi.set_line_offset() end
-  movements['a']['"'] = function () act.outside_character('"') tavi.set_line_offset() end
-  movements['i']['w'] = function () act.inside_word() tavi.set_line_offset() end
-  movements['a']['w'] = function () act.outside_word() tavi.set_line_offset() end
+  movements['$'] = function () act.end_line(nil, -2) tavi.set_caret_x() end
+  movements['^'] = function () act.soft_start_line() tavi.set_caret_x() end
+  movements['0'] = function () act.start_line() tavi.set_caret_x() end
+  movements['G'] = function () act.document_end() tavi.set_caret_x() end
+  movements['i'] = make_char_functor_table(function (c) return function () act.inside_brace_capture(c) tavi.set_caret_x() end end)
+  movements['i']["'"] = function () act.inside_character("'") tavi.set_caret_x() end
+  movements['i']['"'] = function () act.inside_character('"') tavi.set_caret_x() end
+  movements['a'] = make_char_functor_table(function (c) return function () act.outside_brace_capture(c) tavi.set_caret_x() end end)
+  movements['a']["'"] = function () act.outside_character("'") tavi.set_caret_x() end
+  movements['a']['"'] = function () act.outside_character('"') tavi.set_caret_x() end
+  movements['i']['w'] = function () act.inside_word() tavi.set_caret_x() end
+  movements['a']['w'] = function () act.outside_word() tavi.set_caret_x() end
   return movements
 end
 

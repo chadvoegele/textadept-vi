@@ -187,6 +187,14 @@ local test_text3 = function ()
   return text
 end
 
+local test_text4 = function ()
+  local text =
+'Tab spacing is handled\n'..
+'\t\ton up and down lines.\n'..
+'\tThis test checks!\n'
+  return text
+end
+
 test_normal = make_test_table()
 test_normal('right', test_text0(), 4, to_chars('lx'), 'Poten potables.\n')
 test_normal('left', test_text0(), 4, to_chars('hx'), 'Potnt potables.\n')
@@ -202,6 +210,9 @@ test_normal('unicode_find', test_text3(), 12, to_chars('ftx'), 'Unicode works �
 test_normal('unicode_find2', test_text3(), 15, to_chars('t x'), 'Unicode works  too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_backwards_find', test_text3(), 20, to_chars('Fsx'), 'Unicode work ☺ too!\nThough it ☹ is a pain!\n')
 test_normal('unicode_replace', test_text3(), 14, to_chars('ra'), 'Unicode works a too!\nThough it ☹ is a pain!\n')
+test_normal('tab_space_down', test_text4(), 3, to_chars('ljx'), 'Tab spacing is handled\n\t\tn up and down lines.\n\tThis test checks!\n')
+test_normal('tab_space_2down', test_text4(), 3, to_chars('l2jx'), 'Tab spacing is handled\n\t\ton up and down lines.\n\tThs test checks!\n')
+test_normal('tab_space_up', test_text4(), 62, to_chars('lkx'), 'Tab spacing is handled\n\t\ton up and dow lines.\n\tThis test checks!\n')
 
 test_visual = make_test_table()
 test_visual('cut', test_text0(), 4, to_chars('vx'), 'Potet potables.\n')
