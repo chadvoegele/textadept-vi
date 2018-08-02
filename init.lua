@@ -468,7 +468,7 @@ tavi.pos.left_til_til_character = make_to_character(-1, 2)
 
 -- Actions
 local make_action = function (action)
-  act = {}
+  local act = {}
   setmetatable(act, {
     __call = function (act, ...) return action(...) end,
     __index = function (act, key)
