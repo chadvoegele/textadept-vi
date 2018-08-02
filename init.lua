@@ -156,6 +156,22 @@ tavi.pos_from_line_change = function (line_change, pos, caret_x)
   return n_pos
 end
 
+local function pos_from_paragraph_change(paragraph_change, pos)
+  local pos = pos and pos or tavi.pos.current()
+  if paragraph_change == 0 or paragraph_change == nil then
+    return pos
+  end
+  local direction = paragraph_change > 0 and 1 or -1
+  local isLineEmpty = function (line)
+    return buffer.line_end_position[line] - buffer.position_from_line(line) == 0
+  end
+  local line = buffer:line_from_position(pos) + direction
+  while line >= 0 and line < buffer.line_count and not isLineEmpty(line) do
+    line = line + direction
+  end
+  return pos_from_paragraph_change(paragraph_change-direction, buffer:position_from_line(line))
+end
+
 tavi.replace_selection = function (replace_char)
   if buffer.selection_is_rectangle then
     local startp = tavi.pos.current() < tavi.pos.anchor() and tavi.pos.current() or tavi.pos.anchor()
@@ -366,6 +382,8 @@ tavi.pos.line_down = function (c) return tavi.pos_from_line_change(c or 1) end
 tavi.pos.document_end = function () return tavi.pos.line(buffer.line_count) end
 tavi.pos.page_up = function (n) return tavi.pos_from_line_change((n or 1) * -buffer.lines_on_screen) end
 tavi.pos.page_down = function (n) return tavi.pos_from_line_change((n or 1) * buffer.lines_on_screen) end
+tavi.pos.paragraph_up = function (n) return pos_from_paragraph_change(-(n or 1)) end
+tavi.pos.paragraph_down = function (n) return pos_from_paragraph_change((n or 1)) end
 
 -- -2: ...end of lin_e\n <- block caret shows on last char
 -- -1: ...end of line_\n
@@ -658,6 +676,8 @@ local make_canonical_movements = function (act)
     ['right'] = function (n) return function () act.character_right(n) tavi.set_caret_x() end end,
     ['pgup'] = function (n) return function () act.page_up(n) end end,
     ['pgdn'] = function (n) return function () act.page_down(n) end end,
+    ['}'] = function (n) return function () act.paragraph_down(n) end end,
+    ['{'] = function (n) return function () act.paragraph_up(n) end end,
     ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'right_til_character' tavi.state.last_to_char = c end end end),
     ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'right_til_til_character' tavi.state.last_to_char = c end end end),
     ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'left_to_character' tavi.state.last_to_char = c end end end),

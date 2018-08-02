@@ -195,6 +195,21 @@ local test_text4 = function ()
   return text
 end
 
+local test_text5 = function ()
+  local text =
+'Newton\'s Laws:\n'..
+'\n'..
+'An object at rest stays at rest and an object \n'..
+'in motion stays in motion with the same speed \n'..
+'and in the same direction unless acted upon by \n'..
+'an unbalanced force.\n'..
+'\n'..
+'Acceleration is produced when a force acts on a mass. (F=ma)\n'..
+'\n'..
+'For every action there is an equal and opposite re-action.\n'
+  return text
+end
+
 test_normal = make_test_table()
 test_normal('right', test_text0(), 4, to_chars('lx'), 'Poten potables.\n')
 test_normal('left', test_text0(), 4, to_chars('hx'), 'Potnt potables.\n')
@@ -221,6 +236,7 @@ test_normal('repeat_reverse_find', test_text0(), 7, to_chars('fo,x'), 'Ptent pot
 test_normal('repeat_reverse_backwards_find', test_text0(), 7, to_chars('Ft,x'), 'Potent poables.\n')
 test_normal('repeat_reverse_til', test_text0(), 7, to_chars('tt2,x'), 'Potnt potables.\n')
 test_normal('repeat_reverse_backwards_til', test_text0(), 7, to_chars('Tt,x'), 'Potent ptables.\n')
+test_normal('paragraph_down', test_text5(), 0, to_chars('2}x'), 'Newton\'s Laws:\n\nAn object at rest stays at rest and an object \nin motion stays in motion with the same speed \nand in the same direction unless acted upon by \nan unbalanced force.\nAcceleration is produced when a force acts on a mass. (F=ma)\n\nFor every action there is an equal and opposite re-action.\n')
 
 test_visual = make_test_table()
 test_visual('cut', test_text0(), 4, to_chars('vx'), 'Potet potables.\n')
