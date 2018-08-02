@@ -896,7 +896,7 @@ end
 keys.visual_line['c'] = function ()
   tavi.state.paste_mode = tavi.PASTE_LINE
   tavi.adjust_act(function() buffer:cut() end)
-  tavi.enter_mode(nil)
+  keys.normal['O']()
 end
 keys.visual_line['r'] = make_char_functor_table(function (c) return function () tavi.adjust_act(function () tavi.replace_selection(c) end) tavi.enter_mode(tavi.MODE.NORMAL) end end)
 
