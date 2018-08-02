@@ -140,14 +140,15 @@ local function binary_search(haystack, needle, s, e)
   end
 end
 
-tavi.pos_from_line_change = function (line_change, pos)
+tavi.pos_from_line_change = function (line_change, pos, caret_x)
   local pos = pos or tavi.pos.current()
+  local caret_x = caret_x or tavi.state.caret_x
   local line = buffer:line_from_position(pos)
   local n_line = line_from_line_change(line_change, line)
   local n_start_line = tavi.pos.line(n_line)
   local n_end_line = tavi.pos.end_line(n_start_line)
   local n_widths = get_widths(n_start_line, n_end_line)
-  local n_pos = binary_search(n_widths, tavi.state.caret_x)-1+n_start_line
+  local n_pos = binary_search(n_widths, caret_x)-1+n_start_line
   n_pos = n_pos < n_start_line and n_start_line or n_pos
   n_pos = n_pos > n_end_line and n_end_line or n_pos
   return n_pos

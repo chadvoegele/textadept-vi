@@ -235,5 +235,6 @@ test_visual_block = make_test_table()
 test_visual_block('cutrightdown', test_text2(), 0, flatten('cv', to_chars('llljjjx')), 'old these truths to be self-evident, \n all men are created equal, that they \nendowed by their Creator with certain \nienable Rights, that among these are Life \nLiberty and the pursuit of Happiness.\n')
 test_visual_block('cutupleft', test_text2(), 152, flatten('cv', to_chars('hhhkkkx')), 'We hold these truths e self-evident, \nthat all men are creaequal, that they \nare endowed by their tor with certain \nunalienable Rights, tamong these are Life \nLiberty and the pursuit of Happiness.\n')
 test_visual_block('unicode_cut', test_text3(), 14, flatten('cv', to_chars('lx')), 'Unicode works too!\nThough it ☹ is a pain!\n')
+test_visual_block('replace_char', test_text2(), 0, flatten(to_chars('4l'), 'cv', to_chars('4jra')), 'We hald these truths to be self-evident, \nthataall men are created equal, that they \nare andowed by their Creator with certain \nunalaenable Rights, that among these are Life \nLibeaty and the pursuit of Happiness.\n')
 
 return testtavi
