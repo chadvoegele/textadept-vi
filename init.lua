@@ -21,6 +21,8 @@ tavi.MODE.PASTE = 'paste'
 tavi.state = {
   paste_mode = tavi.PASTE_HERE,
   caret_x = 0,
+  last_to_char = nil,
+  last_to_movement = nil
 }
 
 -- Operations
@@ -616,6 +618,31 @@ local function make_number_functor_table(function_table, number)
   return t
 end
 
+local reverse_movement = function (movement)
+  local reversals = {
+    right_til_character = 'left_to_character',
+    left_to_character = 'right_til_character',
+    right_til_til_character = 'left_til_character',
+    left_til_character = 'right_til_til_character',
+  };
+  return reversals[movement]
+end
+
+local repeat_to_character = function (act, movement, character, n)
+  if not character or not movement then
+    return
+  end
+
+  local pos = tavi.pos.current()
+  if movement == 'right_til_til_character' then
+    pos = pos + 1
+  elseif movement == 'left_til_character' then
+    pos = pos - 1
+  end
+  act[movement](character, n, pos)
+  tavi.set_caret_x()
+end
+
 local make_canonical_movements = function (act)
   local movements = make_number_functor_table({
     ['g'] = {
@@ -631,12 +658,14 @@ local make_canonical_movements = function (act)
     ['right'] = function (n) return function () act.character_right(n) tavi.set_caret_x() end end,
     ['pgup'] = function (n) return function () act.page_up(n) end end,
     ['pgdn'] = function (n) return function () act.page_down(n) end end,
-    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_caret_x() end end end),
-    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_caret_x() end end end),
-    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_caret_x() end end end),
-    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_caret_x() end end end),
+    ['f'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'right_til_character' tavi.state.last_to_char = c end end end),
+    ['t'] = make_char_functor_table(function (c) return function (n) return function () act.right_til_til_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'right_til_til_character' tavi.state.last_to_char = c end end end),
+    ['F'] = make_char_functor_table(function (c) return function (n) return function () act.left_to_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'left_to_character' tavi.state.last_to_char = c end end end),
+    ['T'] = make_char_functor_table(function (c) return function (n) return function () act.left_til_character(c, n) tavi.set_caret_x() tavi.state.last_to_movement = 'left_til_character' tavi.state.last_to_char = c end end end),
     ['w'] = function (n) return function () act.word_end(n) tavi.set_caret_x() end end,
-    ['b'] = function (n) return function () act.word_start(n) tavi.set_caret_x() end end
+    ['b'] = function (n) return function () act.word_start(n) tavi.set_caret_x() end end,
+    [';'] = function (n) return function () repeat_to_character(act, tavi.state.last_to_movement, tavi.state.last_to_char, n) end end,
+    [','] = function (n) return function () repeat_to_character(act, reverse_movement(tavi.state.last_to_movement), tavi.state.last_to_char, n) end end,
   })
   movements['$'] = function () act.end_line(nil, -2) tavi.set_caret_x() end
   movements['^'] = function () act.soft_start_line() tavi.set_caret_x() end
