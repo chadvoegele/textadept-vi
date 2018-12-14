@@ -59,7 +59,7 @@ end
 
 local setup_buffer = function (text)
   buffer:clear_all()
-  events.emit(events.RESET_AFTER)
+  events.emit(events.RESET_AFTER, { buffers_zorder = 0 })
   buffer:insert_text(-1, text)
 end
 
