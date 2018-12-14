@@ -236,7 +236,7 @@ tavi.enter_mode = function (mode)
   elseif mode == tavi.MODE.PASTE then
     tavi.clear_selection()
     buffer:cancel()
-    events.connect(events.KEYPRESS, paste_mode_keypress, 2)
+    events.connect(events.KEYPRESS, paste_mode_keypress)
   elseif mode == tavi.MODE.VISUAL then
     tavi.select(buffer.selection_end, buffer.selection_start)
   elseif mode == tavi.MODE.VISUAL_LINE then
